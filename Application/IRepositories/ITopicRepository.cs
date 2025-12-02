@@ -1,7 +1,7 @@
 ﻿using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Domain.Models;
 
-namespace IceBreakerApp.Domain.Interfaces;
+namespace IceBreakerApp.Domain.IRepositories;
 
 public interface ITopicRepository
 {

@@ -1,6 +1,5 @@
 ﻿using FluentValidation;
 using IceBreakerApp.Application.DTOs.Response;
-using IceBreakerApp.Application.Interfaces;
 using IceBreakerApp.Application.IServices;
 
 public class CreateQuestionAnswerValidator : AbstractValidator<CreateQuestionAnswerDTO>

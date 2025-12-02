@@ -1,4 +1,4 @@
-﻿namespace IceBreakerApp.Domain.Interfaces.IServices;
+﻿namespace IceBreakerApp.Application.IServices;
 
 public interface IQuestionLikeService
 {

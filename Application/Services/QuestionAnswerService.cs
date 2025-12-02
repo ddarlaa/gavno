@@ -2,9 +2,9 @@
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
+using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Domain;
-using IceBreakerApp.Domain.Interfaces;
-using IceBreakerApp.Domain.Interfaces.IServices;
+using IceBreakerApp.Domain.IRepositories;
 
 namespace IceBreakerApp.Application.Services;
 

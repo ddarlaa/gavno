@@ -8,7 +8,6 @@ using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.Services;
 using IceBreakerApp.Domain;
-using IceBreakerApp.Domain.Interfaces;
 using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
 using Microsoft.AspNetCore.JsonPatch;

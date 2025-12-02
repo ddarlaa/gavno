@@ -1,20 +1,40 @@
+using System.Reflection;
+using FluentMigrator.Runner;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using IceBreakerApp.API.Middleware;
 using Microsoft.OpenApi.Models;
-using IceBreakerApp.Application.Services;
-using IceBreakerApp.Infrastructure.Repositories;
 using IceBreakerApp.Infrastructure.Configuration;
-using IceBreakerApp.Domain.IRepositories;
-using IceBreakerApp.Domain.Interfaces;
-using IceBreakerApp.Application.Interfaces;
-using IceBreakerApp.Application.IServices;
-using IceBreakerApp.Domain.Interfaces.IServices;
+using Migrations;
 using Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using IceBreakerApp.Domain.IRepositories;
+using IceBreakerApp.Application.IServices;
+using IceBreakerApp.Application.Services;
+using Infrastructure;
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+// База данных
+builder.Services.AddFluentMigratorCore()
+    .ConfigureRunner(rb => rb
+        .AddPostgres()  // PostgreSQL
+        .WithGlobalConnectionString(builder.Configuration.GetConnectionString("DefaultConnection"))
+        .ScanIn(typeof(InitialCreate).Assembly).For.Migrations());
+
+
+var app = builder.Build();
+
+// Применяем миграции
+using var scope = app.Services.CreateScope();
+var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+runner.MigrateUp();
+
+// Настройка Entity Framework
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Add builder.Services to the container
 builder.Services.AddControllers().AddNewtonsoftJson(); // Для поддержки JsonPatchDocument
@@ -35,8 +55,8 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
     c.EnableAnnotations();
-// XML Comments
-    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    // XML Comments
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
     {
@@ -52,13 +72,6 @@ builder.Services.AddFluentValidationAutoValidation();
 
 // Регистрация всех валидаторов
 builder.Services.AddValidatorsFromAssemblyContaining<CreateUserValidator>();
-builder.Services.AddValidatorsFromAssemblyContaining<CreateQuestionValidator>();
-builder.Services.AddValidatorsFromAssemblyContaining<CreateQuestionAnswerValidator>();
-builder.Services.AddValidatorsFromAssemblyContaining<CreateTopicValidator>();
-builder.Services.AddValidatorsFromAssemblyContaining<UpdateQuestionValidator>();
-builder.Services.AddValidatorsFromAssemblyContaining<UpdateTopicValidator>();
-builder.Services.AddValidatorsFromAssemblyContaining<UpdateUserValidator>();
-
 
 // Настройка конфигурации хранилища
 builder.Services.Configure<StorageSettings>(options =>
@@ -76,13 +89,9 @@ builder.Services.AddAutoMapper(typeof(Program));
 
 // Регистрация репозиториев
 builder.Services.AddScoped<IUserRepository, UserRepository>();
-
 builder.Services.AddScoped<IQuestionRepository, QuestionRepository>();
-
 builder.Services.AddScoped<ITopicRepository, TopicRepository>();
-
 builder.Services.AddScoped<IQuestionAnswerRepository, QuestionAnswerRepository>();
-
 builder.Services.AddScoped<IQuestionLikeRepository, QuestionLikeRepository>();
 
 // Регистрация сервисов
@@ -95,7 +104,8 @@ builder.Services.AddScoped<IQuestionLikeService, QuestionLikeService>();
 // Health Checks
 builder.Services.AddHealthChecks();
 
-var app = builder.Build();
+app = builder.Build();
+
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
@@ -112,6 +122,7 @@ app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();
+
 // Health Check Endpoint
 app.MapGet("/api/health", () => Results.Ok(new
 {
@@ -119,4 +130,5 @@ app.MapGet("/api/health", () => Results.Ok(new
     timestamp = DateTime.UtcNow,
     version = "1.0.0"
 })).WithTags("Health");
+
 app.Run();

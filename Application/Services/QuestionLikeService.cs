@@ -1,7 +1,7 @@
 ﻿using AutoMapper;
+using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Domain;
-using IceBreakerApp.Domain.Interfaces;
-using IceBreakerApp.Domain.Interfaces.IServices;
+using IceBreakerApp.Domain.IRepositories;
 
 namespace IceBreakerApp.Application.Services;
 

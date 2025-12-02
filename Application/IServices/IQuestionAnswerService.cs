@@ -2,7 +2,7 @@
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
 
-namespace IceBreakerApp.Domain.Interfaces.IServices;
+namespace IceBreakerApp.Application.IServices;
 
 public interface IQuestionAnswerService
 {
