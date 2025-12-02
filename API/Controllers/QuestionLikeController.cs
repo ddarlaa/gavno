@@ -1,5 +1,5 @@
 ﻿
-using IceBreakerApp.Domain.Interfaces.IServices;
+using IceBreakerApp.Application.IServices;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 

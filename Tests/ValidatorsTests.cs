@@ -6,7 +6,6 @@ using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Create;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
-using IceBreakerApp.Application.Interfaces;
 using IceBreakerApp.Application.IServices;
 
 using Microsoft.Extensions.DependencyInjection;

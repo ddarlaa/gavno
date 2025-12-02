@@ -1,7 +1,7 @@
 ﻿using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
-using IceBreakerApp.Application.Interfaces;
+using IceBreakerApp.Application.IServices;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;

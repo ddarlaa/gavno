@@ -3,7 +3,7 @@ using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
 using Microsoft.AspNetCore.JsonPatch;
 
-namespace IceBreakerApp.Application.Interfaces;
+namespace IceBreakerApp.Application.IServices;
 
 public interface IQuestionService
 {

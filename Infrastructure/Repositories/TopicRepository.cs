@@ -1,174 +1,102 @@
 ﻿using IceBreakerApp.Application.DTOs;
-using IceBreakerApp.Domain.Interfaces;
-using System.Text.Json;
+using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
-using IceBreakerApp.Infrastructure.Configuration;
+using Microsoft.EntityFrameworkCore;
 
-namespace IceBreakerApp.Infrastructure.Repositories;
-
-public class TopicRepository : ITopicRepository
+namespace Infrastructure.Repositories
 {
-    private readonly string _filePath;
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
-    private readonly JsonSerializerOptions _jsonOptions;
-
-    public TopicRepository(StorageSettings storageSettings)
+    public class TopicRepository(ApplicationDbContext context) : ITopicRepository
     {
-        _filePath = Path.Combine(storageSettings.StoragePath, storageSettings.TopicsFileName);
+        public async Task<Topic?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await context.Topics
+                .FirstOrDefaultAsync(t => t.Id == id && t.IsActive, cancellationToken);
+        }
+
+        public async Task<PaginatedResult<Topic>> GetPaginatedAsync(
+            int pageNumber, 
+            int pageSize, 
+            string? search = null, 
+            CancellationToken cancellationToken = default)
+        {
+            var query = context.Topics
+                .Where(t => t.IsActive)
+                .AsQueryable();
+
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(t =>
+                    t.Name.Contains(search) ||
+                    (t.Description.Contains(search)));
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+            var items = await query
+                .OrderBy(t => t.Name)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return new PaginatedResult<Topic>(items, totalCount, pageNumber, pageSize);
+        }
+
+        public async Task<Topic?> FindByNameAsync(string name, CancellationToken cancellationToken = default)
+        {
+            return await context.Topics
+                .FirstOrDefaultAsync(t => 
+                    t.Name.ToLower() == name.ToLower() && t.IsActive, cancellationToken);
+        }
+
+        public async Task<bool> ExistsByNameAsync(string name, CancellationToken cancellationToken = default)
+        {
+            return await context.Topics
+                .AnyAsync(t => 
+                    t.Name.ToLower() == name.ToLower() && t.IsActive, cancellationToken);
+        }
+
+        public async Task<IEnumerable<Topic>> GetAllAsync(CancellationToken cancellationToken = default)
+        {
+            return await context.Topics
+                .Where(t => t.IsActive)
+                .OrderBy(t => t.Name)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<Topic> AddAsync(Topic item, CancellationToken cancellationToken = default)
+        {
+            context.Topics.Add(item);
+            await context.SaveChangesAsync(cancellationToken);
+            return item;
+        }
+
+        public async Task UpdateAsync(Topic item, CancellationToken cancellationToken = default)
+        {
+            context.Topics.Update(item);
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            var topic = await GetByIdAsync(id, cancellationToken);
+            
+            if (topic != null)
+            {
+                // Mark topic as inactive (soft delete)
+                topic.IsActive = false;
+                topic.UpdatedAt = DateTime.UtcNow;
+                
+                await UpdateAsync(topic, cancellationToken);
+            }
+        }
+
+        public async Task<IReadOnlyCollection<Topic>> GetByIdsAsync(IEnumerable<Guid> topicIds, CancellationToken ct)
+        {
+            var idSet = topicIds.ToHashSet();
         
-        _jsonOptions = new JsonSerializerOptions 
-        { 
-            PropertyNamingPolicy = GetNamingPolicy(storageSettings.PropertyNamingPolicy),
-            WriteIndented = storageSettings.WriteIndented
-        };
-        
-        // Ensure directory exists
-        var directory = Path.GetDirectoryName(_filePath);
-        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-            Directory.CreateDirectory(directory);
-    }
-
-    private static JsonNamingPolicy? GetNamingPolicy(string policyName) =>
-        policyName.ToLower() switch
-        {
-            "camelcase" => JsonNamingPolicy.CamelCase,
-            "snakecase" => null,
-            "pascalcase" => null,
-            _ => JsonNamingPolicy.CamelCase
-        };
-
-    public async Task<Topic?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        var entities = await ReadAllAsync(cancellationToken);
-        return entities.FirstOrDefault(t => t.Id == id && t.IsActive);
-    }
-
-    public async Task<PaginatedResult<Topic>> GetPaginatedAsync(
-        int pageNumber, 
-        int pageSize, 
-        string? search = null, 
-        CancellationToken cancellationToken = default)
-    {
-        var entities = await ReadAllAsync(cancellationToken);
-        var query = entities.Where(t => t.IsActive).AsQueryable();
-
-        // Apply search filter
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            query = query.Where(t =>
-                t.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                (t.Description != null && t.Description.Contains(search, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        var totalCount = query.Count();
-        var items = query
-            .OrderBy(t => t.Name)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
-        return new PaginatedResult<Topic>(items, totalCount, pageNumber, pageSize);
-    }
-
-    public async Task<Topic?> FindByNameAsync(string name, CancellationToken cancellationToken = default)
-    {
-        var entities = await ReadAllAsync(cancellationToken);
-        return entities.FirstOrDefault(t =>
-            t.Name.Equals(name, StringComparison.OrdinalIgnoreCase) && t.IsActive);
-    }
-
-    public async Task<bool> ExistsByNameAsync(string name, CancellationToken cancellationToken = default)
-    {
-        var entities = await ReadAllAsync(cancellationToken);
-        return entities.Any(t =>
-            t.Name.Equals(name, StringComparison.OrdinalIgnoreCase) && t.IsActive);
-    }
-
-    public async Task<IEnumerable<Topic>> GetAllAsync(CancellationToken cancellationToken = default)
-    {
-        var entities = await ReadAllAsync(cancellationToken);
-        return entities.Where(t => t.IsActive).OrderBy(t => t.Name);
-    }
-
-    public async Task<Topic> AddAsync(Topic item, CancellationToken cancellationToken = default)
-    {
-        var entities = await ReadAllAsync(cancellationToken);
-        entities.Add(item);
-        await WriteAllAsync(entities, cancellationToken);
-        return item;
-    }
-
-    public async Task UpdateAsync(Topic item, CancellationToken cancellationToken = default)
-    {
-        var entities = await ReadAllAsync(cancellationToken);
-        var existingIndex = entities.FindIndex(t => t.Id == item.Id);
-        
-        if (existingIndex == -1)
-            throw new KeyNotFoundException($"Topic with ID {item.Id} not found");
-
-        entities[existingIndex] = item;
-        await WriteAllAsync(entities, cancellationToken);
-    }
-
-    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        var entities = await ReadAllAsync(cancellationToken);
-        var topic = entities.FirstOrDefault(t => t.Id == id);
-        
-        if (topic != null)
-        {
-            // Mark topic as inactive (soft delete)
-            topic.IsActive = false;
-            topic.UpdatedAt = DateTime.UtcNow;
-            await WriteAllAsync(entities, cancellationToken);
-        }
-    }
-
-    public async Task<IReadOnlyCollection<Topic>> GetByIdsAsync(IEnumerable<Guid> topicIds, CancellationToken ct)
-    {
-        var topics = await ReadAllAsync(ct);
-        var idSet = topicIds.ToHashSet();
-    
-        return topics
-            .Where(t => idSet.Contains(t.Id) && t.IsActive)
-            .ToList()
-            .AsReadOnly();
-    }
-
-    private async Task<List<Topic>> ReadAllAsync(CancellationToken cancellationToken)
-    {
-        await _semaphore.WaitAsync(cancellationToken);
-        try
-        {
-            if (!File.Exists(_filePath))
-                return new List<Topic>();
-
-            await using var fileStream = File.OpenRead(_filePath);
-            var entities = await JsonSerializer.DeserializeAsync<List<Topic>>(fileStream, _jsonOptions, cancellationToken);
-            return entities ?? new List<Topic>();
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            // Log error here if needed
-            return new List<Topic>();
-        }
-        finally 
-        { 
-            _semaphore.Release(); 
-        }
-    }
-
-    private async Task WriteAllAsync(List<Topic> entities, CancellationToken cancellationToken)
-    {
-        await _semaphore.WaitAsync(cancellationToken);
-        try
-        {
-            await using var fileStream = File.Create(_filePath);
-            await JsonSerializer.SerializeAsync(fileStream, entities, _jsonOptions, cancellationToken);
-        }
-        finally 
-        { 
-            _semaphore.Release(); 
+            return await context.Topics
+                .Where(t => idSet.Contains(t.Id) && t.IsActive)
+                .ToListAsync(ct);
         }
     }
 }
