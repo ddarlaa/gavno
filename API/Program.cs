@@ -4,43 +4,35 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using IceBreakerApp.API.Middleware;
 using Microsoft.OpenApi.Models;
-using IceBreakerApp.Infrastructure.Configuration;
 using Migrations;
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Application.Services;
 using Infrastructure;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
-// База данных
+// 🛠️ 1. Конфигурация сервисов — ВСЁ до Build()
+
+// 🔧 Fluent Migrator
 builder.Services.AddFluentMigratorCore()
     .ConfigureRunner(rb => rb
-        .AddPostgres()  // PostgreSQL
+        .AddPostgres()
         .WithGlobalConnectionString(builder.Configuration.GetConnectionString("DefaultConnection"))
-        .ScanIn(typeof(InitialCreate).Assembly).For.Migrations());
+        .ScanIn(typeof(InitialCreate).Assembly).For.Migrations())
+    .AddLogging(lb => lb.AddFluentMigratorConsole());
 
-
-var app = builder.Build();
-
-// Применяем миграции
-using var scope = app.Services.CreateScope();
-var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
-runner.MigrateUp();
-
-// Настройка Entity Framework
+// 🧱 Entity Framework
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Add builder.Services to the container
-builder.Services.AddControllers().AddNewtonsoftJson(); // Для поддержки JsonPatchDocument
-builder.Services.AddEndpointsApiExplorer();
+// 📦 Контроллеры
+builder.Services.AddControllers().AddNewtonsoftJson();
 
-// Swagger Configuration
+// 📘 Swagger
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
@@ -55,7 +47,6 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
     c.EnableAnnotations();
-    // XML Comments
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
@@ -64,56 +55,57 @@ builder.Services.AddSwaggerGen(c =>
     }
 });
 
-// CORS конфигурация
-builder.Services.AddCors(options => options.AddPolicy("AllowAll",
-    policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+// 🔐 CORS
+builder.Services.AddCors(options => options.AddPolicy("AllowAll", policy =>
+    policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
+// ✅ Валидация
 builder.Services.AddFluentValidationAutoValidation();
-
-// Регистрация всех валидаторов
 builder.Services.AddValidatorsFromAssemblyContaining<CreateUserValidator>();
 
-// Настройка конфигурации хранилища
-builder.Services.Configure<StorageSettings>(options =>
-{
-    options.StoragePath = Path.Combine(builder.Environment.ContentRootPath, "Storage");
-    options.WriteIndented = true;
-    options.PropertyNamingPolicy = "CamelCase";
-});
-
-builder.Services.Configure<StorageSettings>(builder.Configuration.GetSection("StorageSettings"));
-builder.Services.AddSingleton(provider => provider.GetRequiredService<IOptions<StorageSettings>>().Value);
-
-// Настройка AutoMapper
+// 🧩 AutoMapper
 builder.Services.AddAutoMapper(typeof(Program));
 
-// Регистрация репозиториев
+// 🧱 Репозитории и сервисы
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IQuestionRepository, QuestionRepository>();
 builder.Services.AddScoped<ITopicRepository, TopicRepository>();
 builder.Services.AddScoped<IQuestionAnswerRepository, QuestionAnswerRepository>();
 builder.Services.AddScoped<IQuestionLikeRepository, QuestionLikeRepository>();
 
-// Регистрация сервисов
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IQuestionService, QuestionService>();
 builder.Services.AddScoped<ITopicService, TopicService>();
 builder.Services.AddScoped<IQuestionAnswerService, QuestionAnswerService>();
 builder.Services.AddScoped<IQuestionLikeService, QuestionLikeService>();
 
-// Health Checks
+// 🩺 Health Checks
 builder.Services.AddHealthChecks();
 
-app = builder.Build();
+// ✅ Формируем приложение
+var app = builder.Build();
 
-// Configure the HTTP request pipeline
+// 🚀 Применяем миграции
+try
+{
+    using var scope = app.Services.CreateScope();
+    var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+    runner.MigrateUp();
+}
+catch (Exception ex)
+{
+    app.Logger.LogError(ex, "Ошибка при применении миграций");
+    throw;
+}
+
+// 🌐 Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Ice Breaker API v1");
-        c.RoutePrefix = string.Empty; // Swagger UI на корневом URL
+        c.RoutePrefix = string.Empty;
     });
 }
 
@@ -123,7 +115,6 @@ app.UseCors("AllowAll");
 app.UseAuthorization();
 app.MapControllers();
 
-// Health Check Endpoint
 app.MapGet("/api/health", () => Results.Ok(new
 {
     status = "Healthy",
