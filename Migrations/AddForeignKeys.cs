@@ -25,7 +25,7 @@ public class AddForeignKeys : Migration
             .OnDelete(System.Data.Rule.Cascade);
 
         // ====================================================================
-        // ВНЕШНИЕ КЛЮЧИ ДЛЯ QUESTIONANSWERS
+        // ВНЕШНИЕ КЛЮЧИ ДЛЯ QUESTION ANSWERS
         // ====================================================================
         
         // FK: QuestionAnswers.QuestionId -> Questions.Id
@@ -41,7 +41,7 @@ public class AddForeignKeys : Migration
             .OnDelete(System.Data.Rule.Cascade);
 
         // ====================================================================
-        // ВНЕШНИЕ КЛЮЧИ ДЛЯ QUESTIONLIKES
+        // ВНЕШНИЕ КЛЮЧИ ДЛЯ QUESTION LIKES
         // ====================================================================
         
         // FK: QuestionLikes.QuestionId -> Questions.Id
