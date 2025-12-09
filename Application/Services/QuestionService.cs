@@ -2,6 +2,7 @@
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
+using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Domain;
 using IceBreakerApp.Domain.IRepositories;
@@ -9,34 +10,22 @@ using Microsoft.AspNetCore.JsonPatch;
 
 namespace IceBreakerApp.Application.Services;
 
-public class QuestionService : IQuestionService
+public class QuestionService(
+    IQuestionRepository questionRepository,
+    IUserRepository userRepository,
+    ITopicRepository topicRepository,
+    IMapper mapper)
+    : IQuestionService
 {
-    private readonly IQuestionRepository _questionRepository;
-    private readonly IUserRepository _userRepository;
-    private readonly ITopicRepository _topicRepository;
-    private readonly IMapper _mapper;
-
-    public QuestionService(
-        IQuestionRepository questionRepository,
-        IUserRepository userRepository,
-        ITopicRepository topicRepository,
-        IMapper mapper)
-    {
-        _questionRepository = questionRepository;
-        _userRepository = userRepository;
-        _topicRepository = topicRepository;
-        _mapper = mapper;
-    }
-
     public async Task<QuestionResponseDTO?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
-        var question = await _questionRepository.GetByIdAsync(id, ct);
+        var question = await questionRepository.GetByIdAsync(id, ct);
         if (question == null || !question.IsActive)
             return null;
 
         // Инкремент счетчика просмотров
         question.IncrementViewCount();
-        await _questionRepository.UpdateAsync(question, ct);
+        await questionRepository.UpdateAsync(question, ct);
 
         return await MapToResponseDtoAsync(question, ct);
     }
@@ -56,7 +45,7 @@ public class QuestionService : IQuestionService
         if (pageSize > 100) pageSize = 100;
 
         // Получаем пагинированные вопросы из репозитория
-        var paginatedQuestions = await _questionRepository.GetPaginatedAsync(
+        var paginatedQuestions = await questionRepository.GetPaginatedAsync(
             pageNumber, pageSize, sortBy, sortOrder, search, topicId, ct);
 
         // Получаем все ID пользователей и тем
@@ -64,8 +53,8 @@ public class QuestionService : IQuestionService
         var topicIds = paginatedQuestions.Items.Select(q => q.TopicId).Distinct();
 
         // Batch-запросы (по 2 запроса вместо 2N)
-        var users = await _userRepository.GetByIdsAsync(userIds, ct);
-        var topics = await _topicRepository.GetByIdsAsync(topicIds, ct);
+        var users = await userRepository.GetByIdsAsync(userIds, ct);
+        var topics = await topicRepository.GetByIdsAsync(topicIds, ct);
 
         var userDict = users.ToDictionary(u => u.Id);
         var topicDict = topics.ToDictionary(t => t.Id);
@@ -74,7 +63,7 @@ public class QuestionService : IQuestionService
         var responseDtos = new List<QuestionResponseDTO>();
         foreach (var question in paginatedQuestions.Items)
         {
-            var dto = _mapper.Map<QuestionResponseDTO>(question);
+            var dto = mapper.Map<QuestionResponseDTO>(question);
 
             if (userDict.TryGetValue(question.UserId, out var user))
                 dto.UserDisplayName = user.DisplayName;
@@ -94,11 +83,11 @@ public class QuestionService : IQuestionService
     public async Task<QuestionResponseDTO> CreateAsync(CreateQuestionDTO dto, CancellationToken ct = default)
     {
         // Валидация существования связанных сущностей
-        var user = await _userRepository.GetByIdAsync(dto.UserId, ct);
+        var user = await userRepository.GetByIdAsync(dto.UserId, ct);
         if (user == null)
             throw new NotFoundException("User", dto.UserId);
 
-        var topic = await _topicRepository.GetByIdAsync(dto.TopicId, ct);
+        var topic = await topicRepository.GetByIdAsync(dto.TopicId, ct);
         if (topic == null)
             throw new NotFoundException("Topic", dto.TopicId);
 
@@ -106,21 +95,21 @@ public class QuestionService : IQuestionService
         var question = Question.Create(dto.UserId, dto.TopicId, dto.Title, dto.Content);
 
         // Сохранение
-        await _questionRepository.AddAsync(question, ct);
+        await questionRepository.AddAsync(question, ct);
 
         return await MapToResponseDtoAsync(question, ct);
     }
 
     public async Task UpdateAsync(Guid id, UpdateQuestionDTO dto, CancellationToken ct = default)
     {
-        var question = await _questionRepository.GetByIdAsync(id, ct);
+        var question = await questionRepository.GetByIdAsync(id, ct);
         if (question == null || !question.IsActive)
             throw new NotFoundException("Question", id);
 
         // Валидация TopicId если он изменяется
         if (dto.TopicId.HasValue)
         {
-            var topic = await _topicRepository.GetByIdAsync(dto.TopicId.Value, ct);
+            var topic = await topicRepository.GetByIdAsync(dto.TopicId.Value, ct);
             if (topic == null)
                 throw new NotFoundException("Topic", dto.TopicId.Value);
         }
@@ -128,7 +117,7 @@ public class QuestionService : IQuestionService
         // Обновление через доменный метод
         question.Update(dto.Title, dto.Content, dto.TopicId);
 
-        await _questionRepository.UpdateAsync(question, ct);
+        await questionRepository.UpdateAsync(question, ct);
     }
 
     public async Task PatchAsync(
@@ -136,18 +125,18 @@ public class QuestionService : IQuestionService
         JsonPatchDocument<UpdateQuestionDTO> patchDoc,
         CancellationToken ct = default)
     {
-        var question = await _questionRepository.GetByIdAsync(id, ct);
+        var question = await questionRepository.GetByIdAsync(id, ct);
         if (question == null || !question.IsActive)
             throw new NotFoundException("Question", id);
 
         // Маппинг в DTO для применения патча
-        var updateDto = _mapper.Map<UpdateQuestionDTO>(question);
+        var updateDto = mapper.Map<UpdateQuestionDTO>(question);
         patchDoc.ApplyTo(updateDto);
 
         // Валидация TopicId если он был изменен
         if (updateDto.TopicId.HasValue)
         {
-            var topic = await _topicRepository.GetByIdAsync(updateDto.TopicId.Value, ct);
+            var topic = await topicRepository.GetByIdAsync(updateDto.TopicId.Value, ct);
             if (topic == null)
                 throw new NotFoundException("Topic", updateDto.TopicId.Value);
         }
@@ -155,19 +144,19 @@ public class QuestionService : IQuestionService
         // Обновление через доменный метод
         question.Update(updateDto.Title, updateDto.Content, updateDto.TopicId);
 
-        await _questionRepository.UpdateAsync(question, ct);
+        await questionRepository.UpdateAsync(question, ct);
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var question = await _questionRepository.GetByIdAsync(id, ct);
+        var question = await questionRepository.GetByIdAsync(id, ct);
         if (question == null || !question.IsActive)
             throw new NotFoundException("Question", id);
 
         // Soft delete через доменный метод
         question.Delete();
 
-        await _questionRepository.UpdateAsync(question, ct);
+        await questionRepository.UpdateAsync(question, ct);
     }
 
     public async Task<BulkOperationResult<QuestionResponseDTO>> BulkCreateAsync(
@@ -201,14 +190,14 @@ public class QuestionService : IQuestionService
         Question question,
         CancellationToken ct)
     {
-        var dto = _mapper.Map<QuestionResponseDTO>(question);
+        var dto = mapper.Map<QuestionResponseDTO>(question);
 
         // Заполнение связанных данных
-        var user = await _userRepository.GetByIdAsync(question.UserId, ct);
+        var user = await userRepository.GetByIdAsync(question.UserId, ct);
         if (user != null)
             dto.UserDisplayName = user.DisplayName;
 
-        var topic = await _topicRepository.GetByIdAsync(question.TopicId, ct);
+        var topic = await topicRepository.GetByIdAsync(question.TopicId, ct);
         if (topic != null)
             dto.TopicName = topic.Name;
 

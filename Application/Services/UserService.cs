@@ -7,6 +7,7 @@ using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
 using Microsoft.Extensions.Logging;
 using AutoMapper;
+using IceBreakerApp.Application.IRepositories;
 
 namespace IceBreakerApp.Application.Services;
 

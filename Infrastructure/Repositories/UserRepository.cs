@@ -1,4 +1,5 @@
-﻿using IceBreakerApp.Domain.IRepositories;
+﻿using IceBreakerApp.Application.IRepositories;
+using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 

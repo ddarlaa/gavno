@@ -1,7 +1,6 @@
-﻿using IceBreakerApp.Domain.Interfaces;
-using IceBreakerApp.Domain.Models;
+﻿using IceBreakerApp.Domain.Models;
 
-namespace IceBreakerApp.Domain.IRepositories;
+namespace IceBreakerApp.Application.IRepositories;
 public interface IUserRepository
 {
     Task<User?> GetByIdAsync(Guid id, CancellationToken ct);

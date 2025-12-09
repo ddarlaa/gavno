@@ -1,36 +1,57 @@
 using FluentMigrator;
+using FluentMigrator.Expressions;
+using FluentMigrator.Model;
 
-[Migration(20240101000001)]
+namespace Migrations;
+
 public class AddForeignKeys : Migration
 {
     public override void Up()
     {
-        Create.ForeignKey("FK_Questions_Users")
+        // ====================================================================
+        // ВНЕШНИЕ КЛЮЧИ ДЛЯ QUESTIONS
+        // ====================================================================
+        
+        // FK: Questions.UserId -> Users.Id
+        Create.ForeignKey("FK_Questions_Users_UserId")
             .FromTable("Questions").ForeignColumn("UserId")
             .ToTable("Users").PrimaryColumn("Id")
             .OnDelete(System.Data.Rule.Cascade);
 
-        Create.ForeignKey("FK_Questions_Topics")
+        // FK: Questions.TopicId -> Topics.Id
+        Create.ForeignKey("FK_Questions_Topics_TopicId")
             .FromTable("Questions").ForeignColumn("TopicId")
             .ToTable("Topics").PrimaryColumn("Id")
             .OnDelete(System.Data.Rule.Cascade);
 
-        Create.ForeignKey("FK_QuestionAnswers_Questions")
+        // ====================================================================
+        // ВНЕШНИЕ КЛЮЧИ ДЛЯ QUESTIONANSWERS
+        // ====================================================================
+        
+        // FK: QuestionAnswers.QuestionId -> Questions.Id
+        Create.ForeignKey("FK_QuestionAnswers_Questions_QuestionId")
             .FromTable("QuestionAnswers").ForeignColumn("QuestionId")
             .ToTable("Questions").PrimaryColumn("Id")
             .OnDelete(System.Data.Rule.Cascade);
 
-        Create.ForeignKey("FK_QuestionAnswers_Users")
+        // FK: QuestionAnswers.UserId -> Users.Id
+        Create.ForeignKey("FK_QuestionAnswers_Users_UserId")
             .FromTable("QuestionAnswers").ForeignColumn("UserId")
             .ToTable("Users").PrimaryColumn("Id")
             .OnDelete(System.Data.Rule.Cascade);
 
-        Create.ForeignKey("FK_QuestionLikes_Questions")
+        // ====================================================================
+        // ВНЕШНИЕ КЛЮЧИ ДЛЯ QUESTIONLIKES
+        // ====================================================================
+        
+        // FK: QuestionLikes.QuestionId -> Questions.Id
+        Create.ForeignKey("FK_QuestionLikes_Questions_QuestionId")
             .FromTable("QuestionLikes").ForeignColumn("QuestionId")
             .ToTable("Questions").PrimaryColumn("Id")
             .OnDelete(System.Data.Rule.Cascade);
 
-        Create.ForeignKey("FK_QuestionLikes_Users")
+        // FK: QuestionLikes.UserId -> Users.Id
+        Create.ForeignKey("FK_QuestionLikes_Users_UserId")
             .FromTable("QuestionLikes").ForeignColumn("UserId")
             .ToTable("Users").PrimaryColumn("Id")
             .OnDelete(System.Data.Rule.Cascade);
@@ -38,11 +59,20 @@ public class AddForeignKeys : Migration
 
     public override void Down()
     {
-        Delete.ForeignKey("FK_QuestionLikes_Users").OnTable("QuestionLikes");
-        Delete.ForeignKey("FK_QuestionLikes_Questions").OnTable("QuestionLikes");
-        Delete.ForeignKey("FK_QuestionAnswers_Users").OnTable("QuestionAnswers");
-        Delete.ForeignKey("FK_QuestionAnswers_Questions").OnTable("QuestionAnswers");
-        Delete.ForeignKey("FK_Questions_Topics").OnTable("Questions");
-        Delete.ForeignKey("FK_Questions_Users").OnTable("Questions");
+        // ====================================================================
+        // УДАЛЕНИЕ ВНЕШНИХ КЛЮЧЕЙ В ОБРАТНОМ ПОРЯДКЕ
+        // ====================================================================
+        
+        // Удаляем FK из QuestionLikes
+        Delete.ForeignKey("FK_QuestionLikes_Users_UserId").OnTable("QuestionLikes");
+        Delete.ForeignKey("FK_QuestionLikes_Questions_QuestionId").OnTable("QuestionLikes");
+        
+        // Удаляем FK из QuestionAnswers
+        Delete.ForeignKey("FK_QuestionAnswers_Users_UserId").OnTable("QuestionAnswers");
+        Delete.ForeignKey("FK_QuestionAnswers_Questions_QuestionId").OnTable("QuestionAnswers");
+        
+        // Удаляем FK из Questions
+        Delete.ForeignKey("FK_Questions_Topics_TopicId").OnTable("Questions");
+        Delete.ForeignKey("FK_Questions_Users_UserId").OnTable("Questions");
     }
 }

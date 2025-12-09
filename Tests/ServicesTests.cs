@@ -6,6 +6,7 @@ using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Create;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
+using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Application.Services;
 using IceBreakerApp.Domain;
 using IceBreakerApp.Domain.IRepositories;

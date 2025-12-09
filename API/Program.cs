@@ -3,35 +3,47 @@ using FluentMigrator.Runner;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using IceBreakerApp.API.Middleware;
+using IceBreakerApp.Application.IRepositories;
 using Microsoft.OpenApi.Models;
-using Migrations;
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
-using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Application.Services;
+using IceBreakerApp.Domain.IRepositories;
 using Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 🛠️ 1. Конфигурация сервисов — ВСЁ до Build()
+// =============================================================================
+// КОНФИГУРАЦИЯ СЕРВИСОВ
+// =============================================================================
 
-// 🔧 Fluent Migrator
+// Логирование
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+
+// Настройка контекста базы данных для Entity Framework
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(connectionString,
+        npgsqlOptions => npgsqlOptions.CommandTimeout(30)));
+
+// Fluent Migrator - ВСЕГДА регистрируем 
 builder.Services.AddFluentMigratorCore()
     .ConfigureRunner(rb => rb
         .AddPostgres()
-        .WithGlobalConnectionString(builder.Configuration.GetConnectionString("DefaultConnection"))
-        .ScanIn(typeof(InitialCreate).Assembly).For.Migrations())
+        .WithGlobalConnectionString(connectionString)  
+        .ScanIn(typeof(Migrations.InitialCreate).Assembly).For.Migrations()) // Указываем, где искать миграции (атвоматически сканирует всю сборку)
+    
+    
     .AddLogging(lb => lb.AddFluentMigratorConsole());
 
-// 🧱 Entity Framework
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Контроллеры и JSON-серийализация
+builder.Services.AddControllers()
+    .AddNewtonsoftJson();
 
-// 📦 Контроллеры
-builder.Services.AddControllers().AddNewtonsoftJson();
-
-// 📘 Swagger
+// Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -47,6 +59,7 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
     c.EnableAnnotations();
+    
     var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
     if (File.Exists(xmlPath))
@@ -55,50 +68,87 @@ builder.Services.AddSwaggerGen(c =>
     }
 });
 
-// 🔐 CORS
+// CORS
 builder.Services.AddCors(options => options.AddPolicy("AllowAll", policy =>
-    policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+{
+    policy.AllowAnyOrigin()
+          .AllowAnyMethod()
+          .AllowAnyHeader();
+}));
 
-// ✅ Валидация
+// Валидация
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateUserValidator>();
 
-// 🧩 AutoMapper
-builder.Services.AddAutoMapper(typeof(Program));
+// AutoMapper
+builder.Services.AddAutoMapper(typeof(Program).Assembly);
 
-// 🧱 Репозитории и сервисы
+// Health Checks
+builder.Services.AddHealthChecks();
+
+// =============================================================================
+// РЕГИСТРАЦИЯ РЕПОЗИТОРИЕВ И СЕРВИСОВ
+// =============================================================================
+
+// Репозитории
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IQuestionRepository, QuestionRepository>();
 builder.Services.AddScoped<ITopicRepository, TopicRepository>();
 builder.Services.AddScoped<IQuestionAnswerRepository, QuestionAnswerRepository>();
 builder.Services.AddScoped<IQuestionLikeRepository, QuestionLikeRepository>();
 
+// Сервисы
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IQuestionService, QuestionService>();
 builder.Services.AddScoped<ITopicService, TopicService>();
 builder.Services.AddScoped<IQuestionAnswerService, QuestionAnswerService>();
 builder.Services.AddScoped<IQuestionLikeService, QuestionLikeService>();
 
-// 🩺 Health Checks
-builder.Services.AddHealthChecks();
 
-// ✅ Формируем приложение
+// =============================================================================
+// FLUENTMIGRATOR МИГРАЦИИ 
+// =============================================================================
+
 var app = builder.Build();
 
-// 🚀 Применяем миграции
 try
 {
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("Запуск FluentMigrator миграций...");
+    
     using var scope = app.Services.CreateScope();
     var runner = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
-    runner.MigrateUp();
+
+    var migrations = runner.MigrationLoader.LoadMigrations();
+    
+    if (migrations.Any())
+    {
+        logger.LogInformation($"Найдено {migrations.Count} миграций");
+        
+        // Применяем миграции
+        runner.MigrateUp();
+        logger.LogInformation("✅ FluentMigrator миграции успешно применены");
+    }
+    else
+    {
+        logger.LogWarning("⚠️ Миграции не найдены. Создайте классы миграций.");
+    }
 }
 catch (Exception ex)
 {
-    app.Logger.LogError(ex, "Ошибка при применении миграций");
-    throw;
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "⚠️ Ошибка при применении FluentMigrator миграций");
+    // Не падаем, продолжаем работу
 }
 
-// 🌐 Pipeline
+// =============================================================================
+// КОНФИГУРАЦИЯ PIPELINE
+// =============================================================================
+
+// Обработка исключений
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+
+// Разработческие инструменты
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -109,12 +159,15 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+// Безопасность
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseAuthorization();
+
+// Маршрутизация
 app.MapControllers();
 
+// Health Check
 app.MapGet("/api/health", () => Results.Ok(new
 {
     status = "Healthy",
@@ -122,4 +175,19 @@ app.MapGet("/api/health", () => Results.Ok(new
     version = "1.0.0"
 })).WithTags("Health");
 
-app.Run();
+// =============================================================================
+// ЗАПУСК ПРИЛОЖЕНИЯ
+// =============================================================================
+
+try
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("Запуск Ice Breaker API...");
+    
+    app.Run();
+}
+catch (Exception ex)
+{
+    app.Logger.LogCritical(ex, "Критическая ошибка при запуске приложения");
+    throw;
+}

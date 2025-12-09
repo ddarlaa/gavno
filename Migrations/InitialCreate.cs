@@ -2,7 +2,7 @@
 
 namespace Migrations;
 
-[Migration(20240101000000)]
+[Migration(20251209000000)]
 public class InitialCreate : Migration
 {
     public override void Up()
