@@ -3,13 +3,19 @@ using FluentMigrator.Runner;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using IceBreakerApp.API.Middleware;
+using IceBreakerApp.Application.DTOs;
+using IceBreakerApp.Application.DTOs.ListItem;
+using IceBreakerApp.Application.DTOs.Response;
+using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IRepositories;
 using Microsoft.OpenApi.Models;
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Application.Services;
+using IceBreakerApp.Domain;
 using IceBreakerApp.Domain.IRepositories;
+using IceBreakerApp.Domain.Models;
 using Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -81,7 +87,29 @@ builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<CreateUserValidator>();
 
 // AutoMapper
-builder.Services.AddAutoMapper(typeof(Program).Assembly);
+builder.Services.AddAutoMapper(cfg =>
+{
+    // User маппинги                                                                                                                                                          
+    cfg.CreateMap<User, UserResponseDTO>().ReverseMap();
+    cfg.CreateMap<User, UserListItemDTO>();
+
+    // Question маппинги                                                                                                                                                      
+    cfg.CreateMap<Question, QuestionResponseDTO>();
+    cfg.CreateMap<UpdateQuestionDTO, Question>();
+    cfg.CreateMap<CreateQuestionDTO, Question>();
+
+    // Topic маппинги                                                                                                                                                         
+    cfg.CreateMap<Topic, TopicResponseDTO>();
+    cfg.CreateMap<CreateTopicDTO, Topic>();
+    cfg.CreateMap<Topic, TopicListItemDTO>();
+
+    // QuestionAnswer маппинги                                                                                                                                                 
+    cfg.CreateMap<QuestionAnswer, QuestionAnswerResponseDTO>();
+    cfg.CreateMap<CreateQuestionAnswerDTO, QuestionAnswer>();
+
+    // BaseEntity маппинг для наследников                                                                                                                                     
+    cfg.CreateMap<BaseEntity, BaseEntity>();
+});
 
 // Health Checks
 builder.Services.AddHealthChecks();
@@ -127,17 +155,17 @@ try
         
         // Применяем миграции
         runner.MigrateUp();
-        logger.LogInformation("✅ FluentMigrator миграции успешно применены");
+        logger.LogInformation(" FluentMigrator миграции успешно применены");
     }
     else
     {
-        logger.LogWarning("⚠️ Миграции не найдены. Создайте классы миграций.");
+        logger.LogWarning(" Миграции не найдены. Создайте классы миграций.");
     }
 }
 catch (Exception ex)
 {
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "⚠️ Ошибка при применении FluentMigrator миграций");
+    logger.LogError(ex, " Ошибка при применении FluentMigrator миграций");
     // Не падаем, продолжаем работу
 }
 

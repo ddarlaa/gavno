@@ -1,10 +1,26 @@
-﻿namespace IceBreakerApp.Application.DTOs.Create;
+﻿using System.ComponentModel.DataAnnotations;
 
-public class CreateUserDTO
+namespace IceBreakerApp.Application.DTOs.Create
 {
-    public string Username { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
-    public string DisplayName { get; set; } = string.Empty;
-    public string Bio { get; set; } = string.Empty;
+    public class CreateUserDTO
+    {
+        [Required]
+        [StringLength(100, MinimumLength = 3)]
+        public string Username { get; set; }
+
+        [Required]
+        [EmailAddress]
+        [StringLength(255)]
+        public string Email { get; set; }
+
+        [Required]
+        [StringLength(100, MinimumLength = 6)]
+        public string Password { get; set; }
+
+        [StringLength(100)]
+        public string? DisplayName { get; set; }
+
+        [StringLength(1000)]
+        public string? Bio { get; set; }
+    }
 }

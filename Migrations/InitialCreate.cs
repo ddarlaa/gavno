@@ -2,9 +2,11 @@
 
 namespace Migrations;
 
-[Migration(20251209000000)]
+[Migration(202512090000)]
 public class InitialCreate : Migration
 {
+    
+    // Создание таблиц и колонок, здесь только каркас таблиц
     public override void Up()
     {
         // Users
@@ -74,6 +76,7 @@ public class InitialCreate : Migration
                 .WithDefaultValue(true);
     }
 
+    // Откат: удаляет все таблицы в порядке, обратном созданию (сначала зависящие, потом базовые).
     public override void Down()
     {
         Delete.Table("QuestionLikes");

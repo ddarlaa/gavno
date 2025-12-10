@@ -22,7 +22,7 @@ public class Question : BaseEntity
             throw new ArgumentException("Title is required", nameof(title));
         if (string.IsNullOrWhiteSpace(content))
             throw new ArgumentException("Content is required", nameof(content));
-
+    
         return new Question
         {
             UserId = userId,
@@ -83,4 +83,6 @@ public class Question : BaseEntity
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
     }
+    public User? User { get; private set; }
+    public Topic? Topic { get; private set; }
 }

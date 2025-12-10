@@ -25,4 +25,7 @@ public class QuestionAnswer: BaseEntity
         IsActive = false;
         UpdatedAt = DateTime.UtcNow;
     }
+    public Question? Question { get; private set; }
+    public User? User { get; private set; }
+
 }
