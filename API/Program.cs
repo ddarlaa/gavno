@@ -120,10 +120,13 @@ builder.Services.AddHealthChecks();
 
 // Репозитории
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+builder.Services.AddScoped<IUserRoleRepository, UserRoleRepository>();
 builder.Services.AddScoped<IQuestionRepository, QuestionRepository>();
 builder.Services.AddScoped<ITopicRepository, TopicRepository>();
 builder.Services.AddScoped<IQuestionAnswerRepository, QuestionAnswerRepository>();
 builder.Services.AddScoped<IQuestionLikeRepository, QuestionLikeRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Сервисы
 builder.Services.AddScoped<IUserService, UserService>();
@@ -131,6 +134,11 @@ builder.Services.AddScoped<IQuestionService, QuestionService>();
 builder.Services.AddScoped<ITopicService, TopicService>();
 builder.Services.AddScoped<IQuestionAnswerService, QuestionAnswerService>();
 builder.Services.AddScoped<IQuestionLikeService, QuestionLikeService>();
+
+// Сервисы авторизации
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IEmailService, MockEmailService>();
 
 
 // =============================================================================

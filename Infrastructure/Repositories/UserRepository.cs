@@ -195,5 +195,17 @@ namespace Infrastructure.Repositories
         {
             return await _context.SaveChangesAsync(cancellationToken);
         }
+
+        public async Task<bool> IsEmailUniqueAsync(string email, CancellationToken cancellationToken = default)
+        {
+            return await _context.Users
+                .AnyAsync(u => u.Email.ToLower() == email.ToLower() && u.IsActive, cancellationToken);
+        }
+
+        public async Task<bool> IsUsernameUniqueAsync(string username, CancellationToken cancellationToken = default)
+        {
+            return await _context.Users
+                .AnyAsync(u => u.Username.ToLower() == username.ToLower() && u.IsActive, cancellationToken);
+        }
     }
 }

@@ -39,5 +39,9 @@ namespace IceBreakerApp.Application.IRepositories
         
         // Utility
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+        
+        // Unique checks
+        Task<bool> IsEmailUniqueAsync(string email, CancellationToken cancellationToken = default);
+        Task<bool> IsUsernameUniqueAsync(string username, CancellationToken cancellationToken = default);
     }
 }
