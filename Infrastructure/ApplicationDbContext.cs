@@ -121,7 +121,7 @@ namespace Infrastructure
                 entity.Property(u => u.Username).IsRequired().HasMaxLength(100);
                 entity.Property(u => u.Email).IsRequired().HasMaxLength(255);
                 entity.Property(u => u.PasswordHash).IsRequired();
-                entity.Property(u => u.PasswordSalt).IsRequired();
+                
                 entity.Property(u => u.DisplayName).HasMaxLength(100);
                 entity.Property(u => u.Bio).HasMaxLength(1000);
                 entity.Property(u => u.FirstName).HasMaxLength(100);

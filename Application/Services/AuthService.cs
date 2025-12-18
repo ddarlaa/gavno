@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.IdentityModel.Tokens.Jwt;
 using BCrypt.Net;
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.IServices;
@@ -14,17 +16,23 @@ namespace IceBreakerApp.Application.Services
         private readonly IUserRepository _userRepository;
         private readonly IRoleService _roleService;
         private readonly IEmailService _emailService;
+        private readonly IJwtService _jwtService;
+        private readonly IUserService _userService;
         private readonly ILogger<AuthService> _logger;
 
         public AuthService(
             IUserRepository userRepository,
             IRoleService roleService,
             IEmailService emailService,
+            IJwtService jwtService,
+            IUserService userService,
             ILogger<AuthService> logger)
         {
             _userRepository = userRepository;
             _roleService = roleService;
             _emailService = emailService;
+            _jwtService = jwtService;
+            _userService = userService;
             _logger = logger;
         }
 
@@ -34,7 +42,10 @@ namespace IceBreakerApp.Application.Services
         {
             try
             {
-                // 1. Проверка уникальности данных
+                // Валидация данных уже выполнена через FluentValidation в контроллере
+                // Здесь дополнительно проверим уникальность
+                
+                // 1. Проверка уникальности email
                 var emailExists = await _userRepository.EmailExistsAsync(request.Email, cancellationToken);
                 if (emailExists)
                 {
@@ -45,6 +56,7 @@ namespace IceBreakerApp.Application.Services
                     };
                 }
 
+                // 2. Проверка уникальности username
                 var usernameExists = await _userRepository.UsernameExistsAsync(request.Username, cancellationToken);
                 if (usernameExists)
                 {
@@ -55,7 +67,7 @@ namespace IceBreakerApp.Application.Services
                     };
                 }
 
-                // 2. Создание пользователя
+                // 3. Создание пользователя
                 var user = new User
                 {
                     Id = Guid.NewGuid(),
@@ -63,12 +75,9 @@ namespace IceBreakerApp.Application.Services
                     Email = request.Email,
                     FirstName = request.FirstName,
                     LastName = request.LastName,
-                    DisplayName = request.DisplayName,
-                    Bio = request.Bio,
                     DateOfBirth = request.DateOfBirth,
                     PhoneNumber = request.PhoneNumber,
                     PasswordHash = HashPassword(request.Password),
-                    PasswordSalt = GenerateSalt(),
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
                     IsActive = true,
@@ -76,24 +85,24 @@ namespace IceBreakerApp.Application.Services
                     IsDeleted = false
                 };
 
-                // 3. Сохранение пользователя
+                // 4. Сохранение пользователя в БД
                 await _userRepository.AddAsync(user, cancellationToken);
 
-                // 4. Назначение роли "User" по умолчанию
+                // 5. Назначение роли "User" по умолчанию
                 var defaultRole = await _roleService.GetByNameAsync("User", cancellationToken);
                 if (defaultRole != null)
                 {
                     await _roleService.AssignRoleToUserAsync(user.Id, defaultRole.Id, cancellationToken);
                 }
 
-                // 5. Генерация confirmation token
+                // 6. Генерация confirmation token
                 var confirmationToken = await GenerateConfirmationTokenAsync(user.Id, cancellationToken);
-                var tokenExpiresAt = DateTime.UtcNow.AddHours(24); // Токен действует 24 часа
+                var tokenExpiresAt = DateTime.UtcNow.AddHours(24);
 
-                // 6. Формирование ссылки для подтверждения
+                // 7. Формирование ссылки для подтверждения email
                 var confirmationUrl = $"https://localhost:5001/api/auth/confirm-email?token={confirmationToken}";
 
-                // 7. Отправка email
+                // 8. Отправка welcome email
                 var emailSent = await _emailService.SendWelcomeEmailAsync(
                     user.Email, 
                     user.Username, 
@@ -107,7 +116,7 @@ namespace IceBreakerApp.Application.Services
                 {
                     Success = true,
                     Message = "Registration successful. Please check your email to confirm your account.",
-                    ConfirmationToken = emailSent ? null : confirmationToken, // Только если email не отправлен
+                    ConfirmationToken = emailSent ? null : confirmationToken,
                     ConfirmationUrl = emailSent ? null : confirmationUrl,
                     TokenExpiresAt = emailSent ? null : tokenExpiresAt,
                     UserId = user.Id,
@@ -126,6 +135,120 @@ namespace IceBreakerApp.Application.Services
                     Success = false,
                     Message = "Registration failed. Please try again."
                 };
+            }
+        }
+
+        public async Task<LoginResponseDTO> LoginAsync(LoginDTO loginDto, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // 1. Аутентификация пользователя: поиск по email ИЛИ username + проверка пароля + проверка статуса
+                var user = await _userService.AuthenticateUserAsync(loginDto.EmailOrUsername, loginDto.Password, cancellationToken);
+                
+                if (user == null)
+                {
+                    throw new Exception("Invalid credentials");
+                }
+                // 3. Генерация токенов с claims: UserId, Email, Username, FirstName, LastName, Roles, Custom claims
+                var tokens = await _jwtService.GenerateTokensAsync(user.Id, cancellationToken);
+
+                // 4. Обновление LastLoginAt
+                await _userService.UpdateLastLoginAsync(user.Id, cancellationToken);
+
+                _logger.LogInformation("User logged in successfully: {UserId}, Username: {Username}", 
+                    user.Id, user.Username);
+
+                return tokens;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Login failed for: {EmailOrUsername}", loginDto.EmailOrUsername);
+                throw;
+            }
+        }
+
+        public async Task<LoginResponseDTO> RefreshTokenAsync(RefreshTokenDTO refreshTokenDto, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // 1. Извлечь UserId из истёкшего access token (без валидации expiry)
+                var userId = await _jwtService.GetUserIdFromExpiredTokenAsync(refreshTokenDto.AccessToken, cancellationToken);
+                if (userId == null)
+                {
+                    throw new Exception("Invalid access token");
+                }
+
+                // 2. Найти пользователя в БД
+                var user = await _userRepository.GetByIdAsync(userId.Value, cancellationToken);
+                if (user == null)
+                {
+                    throw new Exception("User not found");
+                }
+
+                // 3. Проверить сохранённый RefreshToken в UserSession
+                var session = await _userRepository.GetActiveSessionAsync(userId.Value, refreshTokenDto.RefreshToken, cancellationToken);
+                if (session == null)
+                {
+                    throw new Exception("Invalid refresh token");
+                }
+
+                // 4. Проверить срок действия RefreshToken
+                if (session.ExpiresAt <= DateTime.UtcNow)
+                {
+                    throw new Exception("Refresh token expired");
+                }
+
+                // 5. Ротация: старый RefreshToken становится недействительным
+                await _jwtService.RevokeRefreshTokenAsync(refreshTokenDto.RefreshToken, cancellationToken);
+
+                // 6. Сгенерировать новую пару токенов
+                var newTokens = await _jwtService.GenerateTokensAsync(userId.Value, cancellationToken);
+
+                _logger.LogInformation("Token refreshed for user: {UserId}", userId);
+
+                return newTokens;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Token refresh failed");
+                throw;
+            }
+        }
+
+        public async Task<bool> LogoutAsync(string refreshToken, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var success = await _jwtService.RevokeRefreshTokenAsync(refreshToken, cancellationToken);
+                
+                if (success)
+                {
+                    _logger.LogInformation("User logged out successfully");
+                }
+                
+                return success;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Logout failed");
+                return false;
+            }
+        }
+
+        public async Task<bool> LogoutAllAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await _userRepository.RevokeAllUserSessionsAsync(userId, cancellationToken);
+                
+                _logger.LogInformation("All sessions revoked for user: {UserId}", userId);
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Logout all failed for user: {UserId}", userId);
+                return false;
             }
         }
 
@@ -176,7 +299,7 @@ namespace IceBreakerApp.Application.Services
             var tokenBytes = Encoding.UTF8.GetBytes(tokenData);
             var base64Token = Convert.ToBase64String(tokenBytes);
             
-            // Дополнительное шифрование для безопасности
+            // Дополнительное шифрование для безопасности  
             return EncryptToken(base64Token);
         }
 
@@ -225,7 +348,7 @@ namespace IceBreakerApp.Application.Services
             return BCrypt.Net.BCrypt.HashPassword(password, BCrypt.Net.BCrypt.GenerateSalt(12));
         }
 
-        private static string GenerateSalt()
+        private async Task<string> GenerateSalt()
         {
             // Генерация случайной соли
             var saltBytes = new byte[32];
@@ -233,13 +356,12 @@ namespace IceBreakerApp.Application.Services
             {
                 rng.GetBytes(saltBytes);
             }
-            return Convert.ToBase64String(saltBytes);
+            return await Task.FromResult(Convert.ToBase64String(saltBytes));
         }
 
-        private static string EncryptToken(string token)
+        private string EncryptToken(string token)
         {
-            // Простое кодирование для демонстрации (в продакшене использовать более сложное шифрование)
-            var key = Convert.ToBase64String(Encoding.UTF8.GetBytes("IceBreakerAppSecretKey2024"));
+            var key = Convert.ToBase64String(Encoding.UTF8.GetBytes("IceBreakerAppSecretKey2025"));
             return Convert.ToBase64String(Encoding.UTF8.GetBytes(token + "|" + key));
         }
 

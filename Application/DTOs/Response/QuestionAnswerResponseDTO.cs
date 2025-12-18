@@ -1,7 +1,12 @@
-﻿namespace IceBreakerApp.Application.DTOs.Update;
+﻿namespace IceBreakerApp.Application.DTOs.Response;
 
 public class QuestionAnswerResponseDTO
 {
+    public QuestionAnswerResponseDTO()
+    {
+        Content = string.Empty;
+    }
+
     public QuestionAnswerResponseDTO(string content, Guid userId)
     {
         Content = content;

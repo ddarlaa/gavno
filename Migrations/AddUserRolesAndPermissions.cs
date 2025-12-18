@@ -115,7 +115,8 @@ public class AddUserRolesAndPermissions : Migration
         
         Create.Index("IX_UserClaims_UserId").OnTable("UserClaims").OnColumn("UserId");
         Create.Index("IX_UserClaims_ClaimType").OnTable("UserClaims").OnColumn("ClaimType");
-        Create.Index("IX_UserClaims_ClaimType_ClaimValue").OnTable("UserClaims").OnColumns("ClaimType", "ClaimValue");
+        Create.Index("IX_UserClaims_ClaimType_ClaimValue").OnTable("UserClaims").OnColumn("ClaimType");
+Create.Index("IX_UserClaims_ClaimType_ClaimValue_Value").OnTable("UserClaims").OnColumn("ClaimValue");
 
         // Добавление колонок в существующую таблицу Users
         Alter.Table("Users")
@@ -190,14 +191,13 @@ public class AddUserRolesAndPermissions : Migration
         Delete.Table("UserSessions");
 
         // Удаление добавленных колонок из Users
-        Alter.Table("Users")
-            .RemoveColumn("PasswordSalt")
-            .RemoveColumn("FirstName")
-            .RemoveColumn("LastName")
-            .RemoveColumn("DateOfBirth")
-            .RemoveColumn("PhoneNumber")
-            .RemoveColumn("LastLoginAt")
-            .RemoveColumn("IsEmailConfirmed")
-            .RemoveColumn("IsDeleted");
+        Delete.Column("PasswordSalt").FromTable("Users");
+        Delete.Column("FirstName").FromTable("Users");
+        Delete.Column("LastName").FromTable("Users");
+        Delete.Column("DateOfBirth").FromTable("Users");
+        Delete.Column("PhoneNumber").FromTable("Users");
+        Delete.Column("LastLoginAt").FromTable("Users");
+        Delete.Column("IsEmailConfirmed").FromTable("Users");
+        Delete.Column("IsDeleted").FromTable("Users");
     }
 }

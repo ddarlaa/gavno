@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace IceBreakerApp.Domain.Models;
@@ -17,10 +17,6 @@ public class User : BaseEntity
     [Required]
     [MaxLength(512)]
     public string PasswordHash { get; set; } = null!;
-
-    [Required]
-    [MaxLength(128)]
-    public string PasswordSalt { get; set; } = null!;
 
     [MaxLength(100)]
     public string? FirstName { get; set; }
@@ -45,15 +41,16 @@ public class User : BaseEntity
     public bool IsEmailConfirmed { get; set; } = false;
 
     [Required]
+    public bool IsActive { get; set; } = true;
+
+    [Required]
     public bool IsDeleted { get; set; } = false;
 
-    // // Навигационные свойства
-    // public ICollection<Question> Questions { get; set; } = new List<Question>();
-    // public ICollection<QuestionAnswer> Answers { get; set; } = new List<QuestionAnswer>();
-    // public ICollection<QuestionLike> Likes { get; set; } = new List<QuestionLike>();
-    
-    // Навигационные свойства для системы авторизации
+    // Навигационные свойства для системы авторизации (связи)
     public ICollection<UserSession> Sessions { get; set; } = new List<UserSession>();
     public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
     public ICollection<UserClaim> UserClaims { get; set; } = new List<UserClaim>();
+    public IEnumerable<Question>? Questions { get; set; } = new List<Question>();
+    public IEnumerable<QuestionAnswer>? Answers { get; set; } = new List<QuestionAnswer>();
+    public IEnumerable<QuestionLike>? Likes { get; set; } = new List<QuestionLike>();
 }

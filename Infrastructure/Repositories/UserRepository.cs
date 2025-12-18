@@ -1,6 +1,7 @@
 ﻿using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Domain.Models;
 using Microsoft.EntityFrameworkCore;
+using BCrypt.Net;
 
 namespace Infrastructure.Repositories
 {
@@ -206,6 +207,93 @@ namespace Infrastructure.Repositories
         {
             return await _context.Users
                 .AnyAsync(u => u.Username.ToLower() == username.ToLower() && u.IsActive, cancellationToken);
+        }
+
+        // Session management methods
+        public async Task AddSessionAsync(UserSession session, CancellationToken cancellationToken = default)
+        {
+            await _context.UserSessions.AddAsync(session, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<UserSession?> GetActiveSessionAsync(Guid userId, string refreshToken, CancellationToken cancellationToken = default)
+        {
+            // Получаем все активные сессии пользователя и проверяем refresh token
+            var sessions = await _context.UserSessions
+                .AsNoTracking()
+                .Where(s => 
+                    s.UserId == userId && 
+                    !s.IsRevoked && 
+                    s.ExpiresAt > DateTime.UtcNow)
+                .ToListAsync(cancellationToken);
+
+            // Проверяем каждый refresh token через BCrypt
+            foreach (var session in sessions)
+            {
+                if (BCrypt.Net.BCrypt.Verify(refreshToken, session.RefreshTokenHash))
+                {
+                    return session;
+                }
+            }
+
+            return null;
+        }
+
+        public async Task<IReadOnlyList<UserSession>> GetActiveSessionsByRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
+        {
+            // Получаем все активные сессии и проверяем refresh token
+            var sessions = await _context.UserSessions
+                .AsNoTracking()
+                .Where(s => 
+                    !s.IsRevoked && 
+                    s.ExpiresAt > DateTime.UtcNow)
+                .ToListAsync(cancellationToken);
+
+            // Проверяем каждый refresh token через BCrypt
+            var matchingSessions = new List<UserSession>();
+            foreach (var session in sessions)
+            {
+                if (BCrypt.Net.BCrypt.Verify(refreshToken, session.RefreshTokenHash))
+                {
+                    matchingSessions.Add(session);
+                }
+            }
+
+            return matchingSessions;
+        }
+
+        public async Task RevokeRefreshTokenAsync(Guid userId, string refreshToken, CancellationToken cancellationToken = default)
+        {
+            var sessions = await GetActiveSessionsByRefreshTokenAsync(refreshToken, cancellationToken);
+            
+            foreach (var session in sessions.Where(s => s.UserId == userId))
+            {
+                session.IsRevoked = true;
+            }
+            
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task RevokeAllUserSessionsAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            var sessions = await _context.UserSessions
+                .Where(s => s.UserId == userId && !s.IsRevoked)
+                .ToListAsync(cancellationToken);
+            
+            foreach (var session in sessions)
+            {
+                session.IsRevoked = true;
+            }
+            
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<UserClaim>> GetUserClaimsAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            return await _context.UserClaims
+                .AsNoTracking()
+                .Where(uc => uc.UserId == userId)
+                .ToListAsync(cancellationToken);
         }
     }
 }

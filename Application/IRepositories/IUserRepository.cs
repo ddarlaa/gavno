@@ -43,5 +43,15 @@ namespace IceBreakerApp.Application.IRepositories
         // Unique checks
         Task<bool> IsEmailUniqueAsync(string email, CancellationToken cancellationToken = default);
         Task<bool> IsUsernameUniqueAsync(string username, CancellationToken cancellationToken = default);
+        
+        // Session management
+        Task AddSessionAsync(UserSession session, CancellationToken cancellationToken = default);
+        Task<UserSession?> GetActiveSessionAsync(Guid userId, string refreshToken, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<UserSession>> GetActiveSessionsByRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default);
+        Task RevokeRefreshTokenAsync(Guid userId, string refreshToken, CancellationToken cancellationToken = default);
+        Task RevokeAllUserSessionsAsync(Guid userId, CancellationToken cancellationToken = default);
+        
+        // User claims
+        Task<IReadOnlyList<UserClaim>> GetUserClaimsAsync(Guid userId, CancellationToken cancellationToken = default);
     }
 }

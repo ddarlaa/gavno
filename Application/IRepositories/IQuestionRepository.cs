@@ -1,6 +1,7 @@
 ﻿using IceBreakerApp.Application.DTOs;
+using IceBreakerApp.Domain.Models;
 
-namespace IceBreakerApp.Domain.IRepositories;
+namespace IceBreakerApp.Application.IRepositories;
 
 public interface IQuestionRepository
 {

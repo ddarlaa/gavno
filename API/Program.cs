@@ -13,8 +13,7 @@ using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Application.Services;
-using IceBreakerApp.Domain;
-using IceBreakerApp.Domain.IRepositories;
+using IceBreakerApp.Application.Validators;
 using IceBreakerApp.Domain.Models;
 using Infrastructure;
 
@@ -35,6 +34,10 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString,
         npgsqlOptions => npgsqlOptions.CommandTimeout(30)));
 
+// JWT Configuration
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+builder.Services.AddScoped<IJwtService, JwtService>();
+
 // Fluent Migrator - ВСЕГДА регистрируем 
 builder.Services.AddFluentMigratorCore()
     .ConfigureRunner(rb => rb
@@ -44,6 +47,29 @@ builder.Services.AddFluentMigratorCore()
     
     
     .AddLogging(lb => lb.AddFluentMigratorConsole());
+
+// JWT Authentication
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
+    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings.Issuer,
+        ValidAudience = jwtSettings.Audience,
+        IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
+            System.Text.Encoding.UTF8.GetBytes(jwtSettings.SecretKey)),
+        ClockSkew = System.TimeSpan.Zero
+    };
+});
 
 // Контроллеры и JSON-серийализация
 builder.Services.AddControllers()
@@ -84,7 +110,7 @@ builder.Services.AddCors(options => options.AddPolicy("AllowAll", policy =>
 
 // Валидация
 builder.Services.AddFluentValidationAutoValidation();
-builder.Services.AddValidatorsFromAssemblyContaining<CreateUserValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(cfg =>
@@ -122,23 +148,29 @@ builder.Services.AddHealthChecks();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IUserRoleRepository, UserRoleRepository>();
-builder.Services.AddScoped<IQuestionRepository, QuestionRepository>();
-builder.Services.AddScoped<ITopicRepository, TopicRepository>();
-builder.Services.AddScoped<IQuestionAnswerRepository, QuestionAnswerRepository>();
-builder.Services.AddScoped<IQuestionLikeRepository, QuestionLikeRepository>();
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// Временно отключены для фокуса на JWT
+// builder.Services.AddScoped<IQuestionRepository, QuestionRepository>();
+// builder.Services.AddScoped<ITopicRepository, TopicRepository>();
+// builder.Services.AddScoped<IQuestionAnswerRepository, QuestionAnswerRepository>();
+// builder.Services.AddScoped<IQuestionLikeRepository, QuestionLikeRepository>();
+
 
 // Сервисы
 builder.Services.AddScoped<IUserService, UserService>();
+
+// Исправленные сервисы для фокуса на JWT
 builder.Services.AddScoped<IQuestionService, QuestionService>();
-builder.Services.AddScoped<ITopicService, TopicService>();
 builder.Services.AddScoped<IQuestionAnswerService, QuestionAnswerService>();
 builder.Services.AddScoped<IQuestionLikeService, QuestionLikeService>();
 
-// Сервисы авторизации
+// Сервисы авторизации (только JWT)
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IEmailService, MockEmailService>();
+
+
+builder.Services.AddScoped<IRoleService, RoleService>();
 
 
 // =============================================================================
@@ -201,6 +233,7 @@ app.UseCors("AllowAll");
 app.UseAuthorization();
 
 // Маршрутизация
+// Временно отключены проблемные контроллеры для фокуса на JWT
 app.MapControllers();
 
 // Health Check

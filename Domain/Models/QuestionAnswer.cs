@@ -1,31 +1,31 @@
-﻿// Domain/QuestionAnswer.cs
 using System.ComponentModel.DataAnnotations;
-using IceBreakerApp.Domain.Models;
+using System.ComponentModel.DataAnnotations.Schema;
 
-namespace IceBreakerApp.Domain;
+namespace IceBreakerApp.Domain.Models;
 
-public class QuestionAnswer: BaseEntity
+public class QuestionAnswer : BaseEntity
 {
+    [Required]
+    public string Content { get; set; } = null!;
+
+    [Required]
     public Guid QuestionId { get; set; }
+
+    [Required]
     public Guid UserId { get; set; }
-    public int ViewCount { get; set; }
-    public string Content { get; set; } = string.Empty;
-    public bool IsAccepted { get; set; }
-    
-    // Доменный метод для инкремента счетчика просмотров
-    public void IncrementViewCount()
-    {
-        ViewCount++;
-        UpdatedAt = DateTime.UtcNow;
-    }
 
-    // Доменный метод для мягкого удаления
-    public void Delete()
-    {
-        IsActive = false;
-        UpdatedAt = DateTime.UtcNow;
-    }
-    public Question? Question { get; private set; }
-    public User? User { get; private set; }
+    public int ViewCount { get; set; } = 0;
 
+    [Required]
+    public bool IsAccepted { get; set; } = false;
+
+    [Required]
+    public bool IsActive { get; set; } = true;
+
+    // Навигационные свойства
+    [ForeignKey(nameof(QuestionId))]
+    public Question Question { get; set; } = null!;
+
+    [ForeignKey(nameof(UserId))]
+    public User User { get; set; } = null!;
 }

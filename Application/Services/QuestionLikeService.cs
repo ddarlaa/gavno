@@ -1,58 +1,52 @@
-﻿using AutoMapper;
 using IceBreakerApp.Application.IServices;
-using IceBreakerApp.Domain;
-using IceBreakerApp.Domain.IRepositories;
+using Microsoft.Extensions.Logging;
 
-namespace IceBreakerApp.Application.Services;
-
-public class QuestionLikeService : IQuestionLikeService
+namespace IceBreakerApp.Application.Services
 {
-    private readonly IQuestionLikeRepository _likeRepository;
-    private readonly IMapper _mapper;
-    
-    public QuestionLikeService(IQuestionLikeRepository likeRepository, IMapper mapper)
+    // Временная заглушка для фокуса на JWT
+    public class QuestionLikeService : IQuestionLikeService
     {
-        _likeRepository = likeRepository;
-        _mapper = mapper;
-    }
+        private readonly ILogger<QuestionLikeService> _logger;
 
-    public async Task<bool> AddLikeAsync(Guid questionId, Guid userId, CancellationToken cancellationToken = default)
-    {
-        if (await _likeRepository.ExistsAsync(questionId, userId, cancellationToken))
-            return false;
+        public QuestionLikeService(ILogger<QuestionLikeService> logger)
+        {
+            _logger = logger;
+        }
 
-        var like = new QuestionLike { QuestionId = questionId, UserId = userId };
-        await _likeRepository.AddAsync(like, cancellationToken);
-        return true;
-    }
+        public Task<bool> AddLikeAsync(Guid questionId, Guid userId, CancellationToken cancellationToken = default)
+        {
+            _logger.LogWarning("QuestionLikeService is temporarily disabled for JWT focus");
+            return Task.FromResult(true);
+        }
 
-    public async Task<bool> RemoveLikeAsync(Guid questionId, Guid userId, CancellationToken cancellationToken = default)
-    {
-        if (!await _likeRepository.ExistsAsync(questionId, userId, cancellationToken))
-            return false;
+        public Task<bool> RemoveLikeAsync(Guid questionId, Guid userId, CancellationToken cancellationToken = default)
+        {
+            _logger.LogWarning("QuestionLikeService is temporarily disabled for JWT focus");
+            return Task.FromResult(true);
+        }
 
-        await _likeRepository.DeleteByQuestionAndUserAsync(questionId, userId, cancellationToken);
-        return true;
-    }
+        public Task<int> GetLikeCountAsync(Guid questionId, CancellationToken cancellationToken = default)
+        {
+            _logger.LogWarning("QuestionLikeService is temporarily disabled for JWT focus");
+            return Task.FromResult(0);
+        }
 
-    public async Task<int> GetLikeCountAsync(Guid questionId, CancellationToken cancellationToken = default)
-    {
-        return await _likeRepository.GetCountByQuestionIdAsync(questionId, cancellationToken);
-    }
+        public Task<int> GetUserLikeCountAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            _logger.LogWarning("QuestionLikeService is temporarily disabled for JWT focus");
+            return Task.FromResult(0);
+        }
 
-    public async Task<int> GetUserLikeCountAsync(Guid userId, CancellationToken cancellationToken = default)
-    {
-        return await _likeRepository.GetCountByUserIdAsync(userId, cancellationToken);
-    }
+        public Task<bool> HasUserLikedAsync(Guid questionId, Guid userId, CancellationToken cancellationToken = default)
+        {
+            _logger.LogWarning("QuestionLikeService is temporarily disabled for JWT focus");
+            return Task.FromResult(false);
+        }
 
-    public async Task<bool> HasUserLikedAsync(Guid questionId, Guid userId, CancellationToken cancellationToken = default)
-    {
-        return await _likeRepository.ExistsAsync(questionId, userId, cancellationToken);
-    }
-
-    public async Task<IEnumerable<Guid>> GetUserLikedQuestionIdsAsync(Guid userId, CancellationToken cancellationToken = default)
-    {
-        var likes = await _likeRepository.GetByUserIdAsync(userId, cancellationToken);
-        return likes.Select(like => like.QuestionId).ToList();
+        public Task<IEnumerable<Guid>> GetUserLikedQuestionIdsAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            _logger.LogWarning("QuestionLikeService is temporarily disabled for JWT focus");
+            return Task.FromResult<IEnumerable<Guid>>(new List<Guid>());
+        }
     }
 }

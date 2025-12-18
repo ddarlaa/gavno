@@ -15,5 +15,8 @@ namespace IceBreakerApp.Application.DTOs
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
         public string? DisplayName { get; set; }
+        
+        // Ошибки валидации
+        public List<object>? Errors { get; set; }
     }
 }

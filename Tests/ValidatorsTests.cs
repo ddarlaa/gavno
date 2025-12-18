@@ -1,14 +1,10 @@
-using AutoFixture;
-using AutoFixture.AutoMoq;
 using FluentAssertions;
-using FluentValidation;
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Create;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Application.Validators;
-using Microsoft.Extensions.DependencyInjection;
 using Moq;
 
 namespace IceBreakerApp.Tests;

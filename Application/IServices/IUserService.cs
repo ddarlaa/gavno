@@ -3,6 +3,7 @@ using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Create;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
+using IceBreakerApp.Domain.Models;
 
 namespace IceBreakerApp.Application.IServices;
 
@@ -16,4 +17,6 @@ public interface IUserService
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
     Task<UserResponseDTO?> FindByEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<UserResponseDTO?> FindByUsernameAsync(string username, CancellationToken cancellationToken = default);
+    Task<User?> AuthenticateUserAsync(string emailOrUsername, string password, CancellationToken cancellationToken = default);
+    Task UpdateLastLoginAsync(Guid userId, CancellationToken cancellationToken = default);
 }

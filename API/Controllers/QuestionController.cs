@@ -2,6 +2,7 @@
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -24,6 +25,9 @@ public class QuestionsController : ControllerBase
         _logger = logger;
     }
 
+    
+    
+    //[AllowAnonymous]
     [HttpGet]
     [SwaggerOperation(Summary = "Get all questions", Description = "Returns paginated list of questions with filtering and sorting")]
     [SwaggerResponse(200, "Success", typeof(PaginatedResult<QuestionResponseDTO>))]

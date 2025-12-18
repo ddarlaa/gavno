@@ -1,6 +1,4 @@
-﻿using System.Security.Cryptography;
-using System.Text;
-using IceBreakerApp.Application.DTOs;
+﻿using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Create;
 using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IServices;
@@ -130,19 +128,61 @@ public class UserService : IUserService
     }
 
     public async Task<UserResponseDTO?> FindByUsernameAsync(
-        string username, 
-        CancellationToken cancellationToken = default)
-    {
-        var user = await _userRepository.FindByUsernameAsync(username, cancellationToken);
-        return user != null ? _mapper.Map<UserResponseDTO>(user) : null;
-    }
+            string username, 
+            CancellationToken cancellationToken = default)
+        {
+            var user = await _userRepository.FindByUsernameAsync(username, cancellationToken);
+            return user != null ? _mapper.Map<UserResponseDTO>(user) : null;
+        }
 
-    private static string HashPassword(string password)
-    {
-        using var sha256 = SHA256.Create();
-        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-        return Convert.ToBase64String(hashedBytes);
-    }
+        public async Task<User?> AuthenticateUserAsync(string emailOrUsername, string password, CancellationToken cancellationToken = default)
+        {
+            // Поиск пользователя по email или username
+            var user = await _userRepository.FindByEmailAsync(emailOrUsername, cancellationToken) ??
+                       await _userRepository.FindByUsernameAsync(emailOrUsername, cancellationToken);
+
+            if (user == null)
+                return null;
+
+            // Проверка активности и статуса
+            if (!user.IsActive || user.IsDeleted)
+                return null;
+
+            // Проверка пароля
+            if (!VerifyPassword(password, user.PasswordHash))
+                return null;
+
+            return user;
+        }
+
+        public async Task UpdateLastLoginAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            var user = await _userRepository.GetByIdWithTrackingAsync(userId, cancellationToken);
+            if (user != null)
+            {
+                user.LastLoginAt = DateTime.UtcNow;
+                user.UpdatedAt = DateTime.UtcNow;
+                await _userRepository.UpdateAsync(user, cancellationToken);
+            }
+        }
+
+        private static string HashPassword(string password)
+        {
+            // Использование BCrypt для хеширования пароля
+            return BCrypt.Net.BCrypt.HashPassword(password, BCrypt.Net.BCrypt.GenerateSalt(12));
+        }
+
+        private static bool VerifyPassword(string password, string passwordHash)
+        {
+            try
+            {
+                return BCrypt.Net.BCrypt.Verify(password, passwordHash);
+            }
+            catch
+            {
+                return false;
+            }
+        }
     
     
 }

@@ -1,6 +1,6 @@
-﻿using IceBreakerApp.Domain;
+﻿using IceBreakerApp.Domain.Models;
 
-namespace IceBreakerApp.Domain.IRepositories;
+namespace IceBreakerApp.Application.IRepositories;
 
 public interface IQuestionLikeRepository
 {
