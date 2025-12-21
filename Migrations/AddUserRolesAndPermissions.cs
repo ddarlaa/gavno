@@ -7,6 +7,7 @@ public class AddUserRolesAndPermissions : Migration
 {
     public override void Up()
     {
+        Execute.Sql("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"");
         // Таблица UserSessions
         Create.Table("UserSessions")
             .WithColumn("Id").AsGuid().PrimaryKey().WithDefaultValue(SystemMethods.NewGuid)

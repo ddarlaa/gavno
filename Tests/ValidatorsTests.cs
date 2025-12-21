@@ -350,7 +350,13 @@ public class CreateQuestionValidatorTests
         _userServiceMock.Setup(x => x.GetByIdAsync(dto.UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UserResponseDTO());
         _topicServiceMock.Setup(x => x.GetByIdAsync(dto.TopicId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TopicResponseDTO(Guid.NewGuid(), "Topic", "Description", DateTime.UtcNow));
+            .ReturnsAsync(new TopicResponseDTO 
+            { 
+                Id = Guid.NewGuid(), 
+                Name = "Topic", 
+                Description = "Description", 
+                CreatedAt = DateTime.UtcNow 
+            });
 
         // Act
         var result = await _validator.ValidateAsync(dto);

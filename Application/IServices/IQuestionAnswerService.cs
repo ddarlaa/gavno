@@ -26,4 +26,6 @@ public interface IQuestionAnswerService
     public Task AcceptAsync(Guid answerId, CancellationToken cancellationToken = default);
     public Task<QuestionAnswerResponseDTO> GetAcceptedAsync(Guid questionId,
         CancellationToken cancellationToken = default);
+    
+    Task<int> GetAnswerCountAsync(Guid questionId, CancellationToken cancellationToken = default);
 }

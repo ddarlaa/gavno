@@ -1,7 +1,10 @@
-﻿using IceBreakerApp.Application.DTOs;
+﻿using IceBreakerApp.Application.Authorization;
+using IceBreakerApp.Application.Authorization.Requirements;
+using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -10,6 +13,7 @@ namespace IceBreakerApp.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
+[Authorize(Policy = "RequireEmailConfirmed")]
 public class QuestionAnswersController : ControllerBase
 {
     private readonly IQuestionAnswerService _service;
@@ -72,6 +76,7 @@ public class QuestionAnswersController : ControllerBase
     /// Создать новый ответ
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = "RequireUserOrAdmin")]
     [SwaggerOperation(Summary = "Create answer")]
     [SwaggerResponse(201, "Answer created", typeof(QuestionAnswerResponseDTO))]
     [SwaggerResponse(400, "Validation error")]
@@ -102,6 +107,7 @@ public class QuestionAnswersController : ControllerBase
     /// Обновить ответ
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Policy = "CanEditAnswer")]
     [SwaggerOperation(Summary = "Update answer")]
     [SwaggerResponse(204, "No Content")]
     [SwaggerResponse(404, "Answer not found")]
@@ -119,6 +125,7 @@ public class QuestionAnswersController : ControllerBase
     /// Удалить ответ
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Policy = "CanDeleteAnswer")]
     [SwaggerOperation(Summary = "Delete answer")]
     [SwaggerResponse(204, "No Content")]
     [SwaggerResponse(404, "Answer not found")]

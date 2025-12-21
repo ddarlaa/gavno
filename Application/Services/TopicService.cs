@@ -50,22 +50,28 @@ public class TopicService : ITopicService
     }
 
     public async Task<TopicResponseDTO> CreateAsync(CreateTopicDTO dto, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(dto.Name))
-            throw new ArgumentException("Topic name is required", nameof(dto.Name));
+        {
+            if (string.IsNullOrWhiteSpace(dto.Name))
+                throw new ArgumentException("Topic name is required", nameof(dto.Name));
 
-        var existingTopic = await _topicRepository.FindByNameAsync(dto.Name.Trim(), cancellationToken);
-        if (existingTopic != null)
-            throw new InvalidOperationException($"Topic with name '{dto.Name}' already exists");
+            var existingTopic = await _topicRepository.FindByNameAsync(dto.Name.Trim(), cancellationToken);
+            if (existingTopic != null)
+                throw new InvalidOperationException($"Topic with name '{dto.Name}' already exists");
 
-        var topic = _mapper.Map<Topic>(dto);
-        
-        // Set domain properties
-        topic.Name = topic.Name.Trim();
+            var topic = _mapper.Map<Topic>(dto);
+            topic.Id = Guid.NewGuid();
+            topic.CreatedAt = DateTime.UtcNow;
+            topic.UpdatedAt = DateTime.UtcNow;
+            topic.IsActive = true;
+            topic.Name = topic.Name.Trim();
 
-        var created = await _topicRepository.AddAsync(topic, cancellationToken);
-        return _mapper.Map<TopicResponseDTO>(created);
-    }
+            var created = await _topicRepository.AddAsync(topic, cancellationToken);
+            
+            _logger.LogInformation("Topic created successfully: {TopicId}, Name: {TopicName}", 
+                created.Id, created.Name);
+            
+            return _mapper.Map<TopicResponseDTO>(created);
+        }
 
     public async Task UpdateAsync(Guid id, UpdateTopicDTO dto, CancellationToken cancellationToken = default)
     {

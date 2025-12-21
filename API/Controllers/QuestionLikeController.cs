@@ -1,5 +1,7 @@
 ﻿
+using IceBreakerApp.Application.Authorization;
 using IceBreakerApp.Application.IServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -8,6 +10,7 @@ namespace IceBreakerApp.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
+[Authorize(Policy = "RequireEmailConfirmed")]
 public class QuestionLikesController : ControllerBase
 {
     private readonly IQuestionLikeService _service;
@@ -79,6 +82,7 @@ public class QuestionLikesController : ControllerBase
     /// <summary>
     /// Поставить лайк
     /// </summary>
+    [Authorize(Policy = "RequireUserOrAdmin")]
     [SwaggerOperation(Summary = "Like a question")]
     [SwaggerResponse(200, "Like added", typeof(bool))]
     [SwaggerResponse(409, "Like already exists")]
@@ -89,6 +93,7 @@ public class QuestionLikesController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Policy = "RequireUserOrAdmin")]
     [HttpDelete("question/{questionId}/user/{userId}")]
     public async Task<ActionResult<bool>> RemoveLike(Guid questionId, Guid userId, CancellationToken ct)
     {

@@ -1,3 +1,4 @@
+using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Domain.Models;
 
 namespace IceBreakerApp.Application.IServices

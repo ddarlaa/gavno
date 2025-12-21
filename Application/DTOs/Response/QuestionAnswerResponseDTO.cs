@@ -19,4 +19,7 @@ public class QuestionAnswerResponseDTO
     public string Content { get; set; }
     public bool IsAccepted { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string Username { get; set; }
+    public int ViewCount { get; set; }
+    public bool IsActive { get; set; }
 }

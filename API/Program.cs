@@ -1,21 +1,31 @@
-using System.Reflection;
 using FluentMigrator.Runner;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using IceBreakerApp.API.Middleware;
+using IceBreakerApp.Application.Authorization;
+using IceBreakerApp.Application.Authorization.Handlers;
+using IceBreakerApp.Application.Authorization.Requirements;
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.ListItem;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IRepositories;
-using Microsoft.OpenApi.Models;
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
-using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Application.Services;
 using IceBreakerApp.Application.Validators;
+using IceBreakerApp.Application.IServices;
+using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
 using Infrastructure;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Microsoft.OpenApi;
+using Scalar.AspNetCore;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,78 +44,81 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString,
         npgsqlOptions => npgsqlOptions.CommandTimeout(30)));
 
-// JWT Configuration
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
-builder.Services.AddScoped<IJwtService, JwtService>();
-
-// Fluent Migrator - ВСЕГДА регистрируем 
+// Fluent Migrator
 builder.Services.AddFluentMigratorCore()
     .ConfigureRunner(rb => rb
         .AddPostgres()
-        .WithGlobalConnectionString(connectionString)  
-        .ScanIn(typeof(Migrations.InitialCreate).Assembly).For.Migrations()) // Указываем, где искать миграции (атвоматически сканирует всю сборку)
-    
-    
+        .WithGlobalConnectionString(connectionString)
+        .ScanIn(typeof(Migrations.InitialCreate).Assembly).For.Migrations())
     .AddLogging(lb => lb.AddFluentMigratorConsole());
 
+// JWT Configuration
+var jwtSettingsSection = builder.Configuration.GetSection("JwtSettings");
+builder.Services.Configure<JwtSettings>(jwtSettingsSection);
+var jwtSettings = jwtSettingsSection.Get<JwtSettings>();
+
 // JWT Authentication
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
-    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings.Issuer,
-        ValidAudience = jwtSettings.Audience,
-        IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-            System.Text.Encoding.UTF8.GetBytes(jwtSettings.SecretKey)),
-        ClockSkew = System.TimeSpan.Zero
-    };
-});
-
-// Контроллеры и JSON-серийализация
-builder.Services.AddControllers()
-    .AddNewtonsoftJson();
-
-// Swagger/OpenAPI
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "Ice Breaker API",
-        Version = "v1",
-        Description = "API для системы вопросов и ответов",
-        Contact = new OpenApiContact
+        var secretKey = jwtSettings?.SecretKey ?? throw new InvalidOperationException("JWT SecretKey is not configured");
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            Name = "Ice Breaker App",
-            Email = "support@icebreak.com"
-        }
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+            ClockSkew = TimeSpan.Zero
+        };
     });
-    c.EnableAnnotations();
+
+// Authorization Policies
+builder.Services.AddAuthorization(options =>
+{
+    // Role-based policies
+    options.AddPolicy("RequireAdminRole", policy => policy.RequireAdminRole());
+    options.AddPolicy("RequireModeratorOrAdmin", policy => policy.RequireModeratorOrAdmin());
+    options.AddPolicy("RequireUserOrAdmin", policy => policy.RequireRole("User", "Admin"));
     
-    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    if (File.Exists(xmlPath))
-    {
-        c.IncludeXmlComments(xmlPath);
-    }
+    // Claim-based policies
+    options.AddPolicy("RequireEmailConfirmed", policy => policy.RequireEmailConfirmed());
+    options.AddPolicy("RequirePremiumSubscription", policy => policy.RequirePremiumSubscription());
+    
+    // Resource-based policies
+    options.AddPolicy("CanEditQuestion", policy => 
+        policy.RequireRole("Admin", "Moderator")
+              .AddRequirements(new ResourceOwnerRequirement("question")));
+    options.AddPolicy("CanDeleteQuestion", policy => 
+        policy.RequireRole("Admin", "Moderator")
+              .AddRequirements(new ResourceOwnerRequirement("question")));
+    options.AddPolicy("CanEditAnswer", policy => 
+        policy.RequireRole("Admin", "Moderator")
+              .AddRequirements(new ResourceOwnerRequirement("answer")));
+    options.AddPolicy("CanDeleteAnswer", policy => 
+        policy.RequireRole("Admin", "Moderator")
+              .AddRequirements(new ResourceOwnerRequirement("answer")));
+    options.AddPolicy("CanEditUser", policy => 
+        policy.RequireRole("Admin")
+              .AddRequirements(new ResourceOwnerRequirement("user")));
+    options.AddPolicy("CanViewReports", policy => 
+        policy.RequireRole("Admin", "Moderator"));
 });
+
+// Контроллеры
+builder.Services.AddControllers();
+
+// OpenAPI Documentation
+builder.Services.AddOpenApi("v1");
 
 // CORS
-builder.Services.AddCors(options => options.AddPolicy("AllowAll", policy =>
+builder.Services.AddCors(options => options.AddPolicy("ApiCorsPolicy", policy =>
 {
-    policy.AllowAnyOrigin()
-          .AllowAnyMethod()
-          .AllowAnyHeader();
+    policy.WithOrigins("http://localhost:3000", "http://localhost:8080", "https://yourdomain.com")
+        .AllowAnyMethod()
+        .AllowAnyHeader();
 }));
 
 // Валидация
@@ -115,25 +128,25 @@ builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>()
 // AutoMapper
 builder.Services.AddAutoMapper(cfg =>
 {
-    // User маппинги                                                                                                                                                          
+    // User маппинги
     cfg.CreateMap<User, UserResponseDTO>().ReverseMap();
     cfg.CreateMap<User, UserListItemDTO>();
 
-    // Question маппинги                                                                                                                                                      
+    // Question маппинги
     cfg.CreateMap<Question, QuestionResponseDTO>();
     cfg.CreateMap<UpdateQuestionDTO, Question>();
     cfg.CreateMap<CreateQuestionDTO, Question>();
 
-    // Topic маппинги                                                                                                                                                         
+    // Topic маппинги
     cfg.CreateMap<Topic, TopicResponseDTO>();
     cfg.CreateMap<CreateTopicDTO, Topic>();
     cfg.CreateMap<Topic, TopicListItemDTO>();
 
-    // QuestionAnswer маппинги                                                                                                                                                 
+    // QuestionAnswer маппинги
     cfg.CreateMap<QuestionAnswer, QuestionAnswerResponseDTO>();
     cfg.CreateMap<CreateQuestionAnswerDTO, QuestionAnswer>();
 
-    // BaseEntity маппинг для наследников                                                                                                                                     
+    // BaseEntity маппинг для наследников
     cfg.CreateMap<BaseEntity, BaseEntity>();
 });
 
@@ -149,35 +162,36 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IUserRoleRepository, UserRoleRepository>();
 
-// Временно отключены для фокуса на JWT
-// builder.Services.AddScoped<IQuestionRepository, QuestionRepository>();
-// builder.Services.AddScoped<ITopicRepository, TopicRepository>();
-// builder.Services.AddScoped<IQuestionAnswerRepository, QuestionAnswerRepository>();
-// builder.Services.AddScoped<IQuestionLikeRepository, QuestionLikeRepository>();
-
+// Репозитории для проверки владения ресурсами
+builder.Services.AddScoped<IQuestionRepository, QuestionRepository>();
+builder.Services.AddScoped<IQuestionAnswerRepository, QuestionAnswerRepository>();
+builder.Services.AddScoped<IQuestionLikeRepository, QuestionLikeRepository>();
+builder.Services.AddScoped<ITopicRepository, TopicRepository>();
 
 // Сервисы
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ITopicService, TopicService>();
 
-// Исправленные сервисы для фокуса на JWT
+// Сервисы вопросов и ответов
 builder.Services.AddScoped<IQuestionService, QuestionService>();
 builder.Services.AddScoped<IQuestionAnswerService, QuestionAnswerService>();
 builder.Services.AddScoped<IQuestionLikeService, QuestionLikeService>();
 
-// Сервисы авторизации (только JWT)
+// Сервисы авторизации
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IEmailService, MockEmailService>();
 
-
+// Authorization Services
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAuthorizationHandler, ResourceOwnerRequirementHandler>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 
-
-// =============================================================================
-// FLUENTMIGRATOR МИГРАЦИИ 
-// =============================================================================
-
 var app = builder.Build();
+
+// =============================================================================
+// ПРИМЕНЕНИЕ FLUENTMIGRATOR МИГРАЦИЙ
+// =============================================================================
 
 try
 {
@@ -195,17 +209,17 @@ try
         
         // Применяем миграции
         runner.MigrateUp();
-        logger.LogInformation(" FluentMigrator миграции успешно применены");
+        logger.LogInformation("FluentMigrator миграции успешно применены");
     }
     else
     {
-        logger.LogWarning(" Миграции не найдены. Создайте классы миграций.");
+        logger.LogWarning("Миграции не найдены. Создайте классы миграций.");
     }
 }
 catch (Exception ex)
 {
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, " Ошибка при применении FluentMigrator миграций");
+    logger.LogError(ex, "Ошибка при применении FluentMigrator миграций");
     // Не падаем, продолжаем работу
 }
 
@@ -213,27 +227,21 @@ catch (Exception ex)
 // КОНФИГУРАЦИЯ PIPELINE
 // =============================================================================
 
-// Обработка исключений
+// Middleware pipeline
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
-
-// Разработческие инструменты
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Ice Breaker API v1");
-        c.RoutePrefix = string.Empty;
-    });
-}
-
-// Безопасность
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+app.UseCors("ApiCorsPolicy");
+app.UseAuthentication(); // ДОБАВЛЕНО - критически важно
 app.UseAuthorization();
 
-// Маршрутизация
-// Временно отключены проблемные контроллеры для фокуса на JWT
+// OpenAPI
+app.MapOpenApi();
+if (app.Environment.IsDevelopment())
+{
+    app.MapScalarApiReference();
+}
+
+// Контроллеры
 app.MapControllers();
 
 // Health Check

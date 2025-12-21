@@ -148,6 +148,10 @@ public class UserService : IUserService
             if (!user.IsActive || user.IsDeleted)
                 return null;
 
+            // Проверка подтверждения email (опционально)
+            if (!user.IsEmailConfirmed)
+                return null;
+
             // Проверка пароля
             if (!VerifyPassword(password, user.PasswordHash))
                 return null;
