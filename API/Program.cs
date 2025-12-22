@@ -22,10 +22,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using Microsoft.OpenApi;
-using Scalar.AspNetCore;
-
-
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -110,8 +107,42 @@ builder.Services.AddAuthorization(options =>
 // Контроллеры
 builder.Services.AddControllers();
 
-// OpenAPI Documentation
-builder.Services.AddOpenApi("v1");
+// Swagger Documentation
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "IceBreakerApp API",
+        Version = "v1",
+        Description = "API для лабораторной работы по аутентификации"
+    });
+
+    // JWT поддержка в Swagger
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 // CORS
 builder.Services.AddCors(options => options.AddPolicy("ApiCorsPolicy", policy =>
@@ -227,19 +258,25 @@ catch (Exception ex)
 // КОНФИГУРАЦИЯ PIPELINE
 // =============================================================================
 
+// Настройка HTTPS редиректа
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 // Middleware pipeline
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
-app.UseHttpsRedirection();
 app.UseCors("ApiCorsPolicy");
 app.UseAuthentication(); // ДОБАВЛЕНО - критически важно
 app.UseAuthorization();
 
-// OpenAPI
-app.MapOpenApi();
-if (app.Environment.IsDevelopment())
+// Swagger UI
+app.UseSwagger();
+app.UseSwaggerUI(options =>
 {
-    app.MapScalarApiReference();
-}
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "IceBreaker API v1");
+    options.RoutePrefix = "swagger"; // Теперь будет доступно по /swagger
+});
 
 // Контроллеры
 app.MapControllers();
