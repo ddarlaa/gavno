@@ -2,7 +2,6 @@ using FluentAssertions;
 using FluentValidation;
 using IceBreakerApp.API.Controllers;
 using IceBreakerApp.Application.DTOs;
-using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Application.Services;
@@ -204,27 +203,25 @@ public class AuthControllerTests
 public class AuthServiceTests
 {
     private readonly Mock<IUserRepository> _userRepositoryMock;
-    private readonly Mock<IRoleService> _roleServiceMock;
     private readonly Mock<IJwtService> _jwtServiceMock;
     private readonly Mock<IEmailService> _emailServiceMock;
-    private readonly Mock<ILogger<AuthService>> _loggerMock;
     private readonly AuthService _service;
 
     public AuthServiceTests()
     {
         _userRepositoryMock = new Mock<IUserRepository>();
-        _roleServiceMock = new Mock<IRoleService>();
+        var roleServiceMock = new Mock<IRoleService>();
         _jwtServiceMock = new Mock<IJwtService>();
         _emailServiceMock = new Mock<IEmailService>();
-        _loggerMock = new Mock<ILogger<AuthService>>();
+        var loggerMock = new Mock<ILogger<AuthService>>();
 
         _service = new AuthService(
             _userRepositoryMock.Object,
-            _roleServiceMock.Object,
+            roleServiceMock.Object,
             _jwtServiceMock.Object,
             _emailServiceMock.Object,
             Mock.Of<IConfiguration>(),
-            _loggerMock.Object);
+            loggerMock.Object);
     }
 
     [Fact]

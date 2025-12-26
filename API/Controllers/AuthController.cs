@@ -1,6 +1,5 @@
 using FluentValidation;
 using IceBreakerApp.Application.DTOs;
-using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Application.Validators;
 using Microsoft.AspNetCore.Mvc;
@@ -51,7 +50,7 @@ public class AuthController : ControllerBase
         [FromBody] RegisterRequestDTO request,
         CancellationToken cancellationToken = default)
     {
-        // Валидация через FluentValidation
+        // Базовая валидация через FluentValidation (синхронная)
         var validationResult = await _registerValidator.ValidateAsync(request, cancellationToken);
         
         if (!validationResult.IsValid)
@@ -61,6 +60,18 @@ public class AuthController : ControllerBase
                 Success = false,
                 Message = "Validation failed",
                 Errors = validationResult.Errors.Select(e => new { e.PropertyName, e.ErrorMessage }).ToList<object>()
+            });
+        }
+
+        // Дополнительная проверка уникальности через асинхронный валидатор
+        var asyncValidationResult = await _authService.ValidateUserUniquenessAsync(request, cancellationToken);
+        if (!asyncValidationResult.IsValid)
+        {
+            return BadRequest(new RegisterResponseDTO
+            {
+                Success = false,
+                Message = "User already exists",
+                Errors = asyncValidationResult.Errors.Select(e => new { e.PropertyName, e.ErrorMessage }).ToList<object>()
             });
         }
 

@@ -6,6 +6,7 @@ using IceBreakerApp.Domain.Models;
 using Microsoft.Extensions.Logging;
 using AutoMapper;
 using IceBreakerApp.Application.IRepositories;
+using IceBreakerApp.Domain;
 
 namespace IceBreakerApp.Application.Services;
 
@@ -62,17 +63,19 @@ public class UserService : IUserService
         
         // Маппинг DTO в User
         var user = new User
-        {
-            Id = Guid.NewGuid(),
-            Username = createDto.Username,
-            Email = createDto.Email,
-            PasswordHash = HashPassword(createDto.Password),
-            DisplayName = createDto.DisplayName,
-            Bio = createDto.Bio,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            IsActive = true
-        };
+            {
+                Id = Guid.NewGuid(),
+                Email = createDto.Email,
+                Username = createDto.Username,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(createDto.Password),
+                DisplayName = createDto.DisplayName,
+                Bio = createDto.Bio,
+                CreatedAt = DateTime.UtcNow.ToPostgreSafeUtc(),
+                UpdatedAt = DateTime.UtcNow.ToPostgreSafeUtc(),
+                IsEmailConfirmed = false,
+                IsActive = true,
+                IsDeleted = false
+            };
         
         // Сохранение
         await _userRepository.AddAsync(user, cancellationToken);
@@ -101,7 +104,7 @@ public class UserService : IUserService
         if (!string.IsNullOrWhiteSpace(updateDto.Bio))
             user.Bio = updateDto.Bio;
         
-        user.UpdatedAt = DateTime.UtcNow;
+        user.UpdatedAt = DateTime.UtcNow.ToPostgreSafeUtc();
         
         await _userRepository.UpdateAsync(user, cancellationToken);
         
@@ -164,8 +167,8 @@ public class UserService : IUserService
             var user = await _userRepository.GetByIdWithTrackingAsync(userId, cancellationToken);
             if (user != null)
             {
-                user.LastLoginAt = DateTime.UtcNow;
-                user.UpdatedAt = DateTime.UtcNow;
+                user.LastLoginAt = DateTime.UtcNow.ToPostgreSafeUtc();
+                user.UpdatedAt = DateTime.UtcNow.ToPostgreSafeUtc();
                 await _userRepository.UpdateAsync(user, cancellationToken);
             }
         }

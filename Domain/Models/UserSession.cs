@@ -3,21 +3,14 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace IceBreakerApp.Domain.Models;
 
-public class UserSession
+public class UserSession : BaseEntity
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public Guid Id { get; set; }
-
     [Required]
     public Guid UserId { get; set; }
 
     [Required]
     [MaxLength(512)]
     public string RefreshTokenHash { get; set; } = null!;
-
-    [Required]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     [Required]
     public DateTime ExpiresAt { get; set; }
@@ -33,5 +26,5 @@ public class UserSession
 
     // Навигационные свойства
     [ForeignKey(nameof(UserId))]
-    public User User { get; set; } = null!;
+    public virtual User User { get; set; } = null!;
 }

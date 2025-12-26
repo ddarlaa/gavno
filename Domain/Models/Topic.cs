@@ -16,5 +16,5 @@ public class Topic : BaseEntity
     public bool IsActive { get; set; } = true;
 
     // Навигационные свойства
-    public IEnumerable<Question>? Questions { get; set; } = new List<Question>();
+    public virtual ICollection<Question> Questions { get; set; } = new List<Question>();
 }

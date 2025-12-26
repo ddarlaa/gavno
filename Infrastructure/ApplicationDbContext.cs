@@ -2,6 +2,7 @@ using IceBreakerApp.Domain;
 using IceBreakerApp.Domain.Models;
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Infrastructure
 {
@@ -21,7 +22,33 @@ namespace Infrastructure
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // FluentMigrator управляет схемой БД, EF Core используется только как ORM
+            // Убираем OnModelCreating, чтобы избежать конфликтов
             base.OnModelCreating(modelBuilder);
+
+            // Конвертер для DateTime в UTC для PostgreSQL
+            var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
+                v => v.ToUniversalTime(), // При сохранении всегда делаем UTC
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc)); // При чтении всегда делаем UTC
+
+            var nullableDateTimeConverter = new ValueConverter<DateTime?, DateTime?>(
+                v => v.HasValue ? v.Value.ToUniversalTime() : v, // При сохранении всегда делаем UTC
+                v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v); // При чтении всегда делаем UTC
+
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                foreach (var property in entityType.GetProperties())
+                {
+                    if (property.ClrType == typeof(DateTime))
+                    {
+                        property.SetValueConverter(dateTimeConverter);
+                    }
+                    else if (property.ClrType == typeof(DateTime?))
+                    {
+                        property.SetValueConverter(nullableDateTimeConverter);
+                    }
+                }
+            }
 
             // BaseEntity defaults
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
@@ -33,7 +60,7 @@ namespace Infrastructure
                 }
             }
 
-            
+            // Question
             modelBuilder.Entity<Question>(entity =>
             {
                 entity.HasKey(q => q.Id);
@@ -42,14 +69,17 @@ namespace Infrastructure
                 entity.Property(q => q.ViewCount).HasDefaultValue(0);
                 entity.Property(q => q.LikeCount).HasDefaultValue(0);
                 entity.Property(q => q.AnswerCount).HasDefaultValue(0);
+                entity.Property(q => q.IsActive).HasDefaultValue(true);
 
+                // ОДНА связь с User
                 entity.HasOne(q => q.User)
                     .WithMany(u => u.Questions)
                     .HasForeignKey(q => q.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+                // ОДНА связь с Topic
                 entity.HasOne(q => q.Topic)
-                    .WithMany()
+                    .WithMany(t => t.Questions) // Добавь обратное свойство в Topic
                     .HasForeignKey(q => q.TopicId)
                     .OnDelete(DeleteBehavior.Cascade);
 
@@ -59,21 +89,24 @@ namespace Infrastructure
                 entity.HasIndex(q => q.CreatedAt);
             });
 
-            
+            // QuestionAnswer
             modelBuilder.Entity<QuestionAnswer>(entity =>
             {
                 entity.HasKey(qa => qa.Id);
                 entity.Property(qa => qa.Content).IsRequired();
                 entity.Property(qa => qa.ViewCount).HasDefaultValue(0);
                 entity.Property(qa => qa.IsAccepted).HasDefaultValue(false);
+                entity.Property(qa => qa.IsActive).HasDefaultValue(true);
 
+                // ОДНА связь с Question
                 entity.HasOne(qa => qa.Question)
-                    .WithMany()
+                    .WithMany(q => q.Answers) // Используй навигационное свойство
                     .HasForeignKey(qa => qa.QuestionId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+                // ОДНА связь с User
                 entity.HasOne(qa => qa.User)
-                    .WithMany(qa => qa.Answers)
+                    .WithMany(u => u.Answers)
                     .HasForeignKey(qa => qa.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
 
@@ -84,16 +117,18 @@ namespace Infrastructure
                 entity.HasIndex(qa => qa.CreatedAt);
             });
 
-            
+            // QuestionLike
             modelBuilder.Entity<QuestionLike>(entity =>
             {
                 entity.HasKey(ql => ql.Id);
 
+                // ОДНА связь с Question
                 entity.HasOne(ql => ql.Question)
-                    .WithMany()
+                    .WithMany(q => q.Likes) // Используй навигационное свойство
                     .HasForeignKey(ql => ql.QuestionId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+                // ОДНА связь с User
                 entity.HasOne(ql => ql.User)
                     .WithMany(u => u.Likes)
                     .HasForeignKey(ql => ql.UserId)
@@ -110,6 +145,7 @@ namespace Infrastructure
                 entity.HasKey(t => t.Id);
                 entity.Property(t => t.Name).IsRequired().HasMaxLength(200);
                 entity.Property(t => t.Description).HasMaxLength(1000);
+                entity.Property(t => t.IsActive).HasDefaultValue(true);
                 entity.HasIndex(t => t.Name).IsUnique();
                 entity.HasIndex(t => t.IsActive);
             });
@@ -128,6 +164,10 @@ namespace Infrastructure
                 entity.Property(u => u.LastName).HasMaxLength(100);
                 entity.Property(u => u.PhoneNumber).HasMaxLength(20);
 
+                entity.Property(u => u.IsActive).HasDefaultValue(true);
+                entity.Property(u => u.IsDeleted).HasDefaultValue(false);
+                entity.Property(u => u.IsEmailConfirmed).HasDefaultValue(false);
+
                 entity.HasIndex(u => u.Username).IsUnique();
                 entity.HasIndex(u => u.Email).IsUnique();
                 entity.HasIndex(u => u.IsActive);
@@ -141,8 +181,10 @@ namespace Infrastructure
                 entity.Property(us => us.RefreshTokenHash).IsRequired().HasMaxLength(512);
                 entity.Property(us => us.DeviceInfo).HasMaxLength(500);
                 entity.Property(us => us.IpAddress).HasMaxLength(45);
+                entity.Property(us => us.IsRevoked).HasDefaultValue(false);
 
-                entity.HasOne<User>()
+                // ОДНА связь с User - используй навигационное свойство
+                entity.HasOne(us => us.User)
                     .WithMany(u => u.Sessions)
                     .HasForeignKey(us => us.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
@@ -159,6 +201,7 @@ namespace Infrastructure
                 entity.HasKey(r => r.Id);
                 entity.Property(r => r.Name).IsRequired().HasMaxLength(100);
                 entity.Property(r => r.Description).HasMaxLength(500);
+                entity.Property(r => r.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                 entity.HasIndex(r => r.Name).IsUnique();
             });
@@ -170,6 +213,7 @@ namespace Infrastructure
                 entity.Property(p => p.Name).IsRequired().HasMaxLength(100);
                 entity.Property(p => p.Description).HasMaxLength(500);
                 entity.Property(p => p.Category).HasMaxLength(50);
+                entity.Property(p => p.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                 entity.HasIndex(p => p.Name).IsUnique();
                 entity.HasIndex(p => p.Category);
@@ -180,12 +224,12 @@ namespace Infrastructure
             {
                 entity.HasKey(ur => new { ur.UserId, ur.RoleId });
 
-                entity.HasOne<User>()
+                entity.HasOne(ur => ur.User)
                     .WithMany(u => u.UserRoles)
                     .HasForeignKey(ur => ur.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                entity.HasOne<Role>()
+                entity.HasOne(ur => ur.Role)
                     .WithMany(r => r.UserRoles)
                     .HasForeignKey(ur => ur.RoleId)
                     .OnDelete(DeleteBehavior.Cascade);
@@ -200,12 +244,12 @@ namespace Infrastructure
             {
                 entity.HasKey(rp => new { rp.RoleId, rp.PermissionId });
 
-                entity.HasOne<Role>()
+                entity.HasOne(rp => rp.Role)
                     .WithMany(r => r.RolePermissions)
                     .HasForeignKey(rp => rp.RoleId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                entity.HasOne<Permission>()
+                entity.HasOne(rp => rp.Permission)
                     .WithMany(p => p.RolePermissions)
                     .HasForeignKey(rp => rp.PermissionId)
                     .OnDelete(DeleteBehavior.Cascade);
@@ -221,7 +265,8 @@ namespace Infrastructure
                 entity.Property(uc => uc.ClaimType).IsRequired().HasMaxLength(100);
                 entity.Property(uc => uc.ClaimValue).IsRequired().HasMaxLength(500);
 
-                entity.HasOne<User>()
+                // ОДНА связь с User - используй навигационное свойство
+                entity.HasOne(uc => uc.User)
                     .WithMany(u => u.UserClaims)
                     .HasForeignKey(uc => uc.UserId)
                     .OnDelete(DeleteBehavior.Cascade);

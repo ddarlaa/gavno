@@ -5,7 +5,6 @@ namespace IceBreakerApp.Domain.Models;
 
 public class Permission
 {
-    [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public Guid Id { get; set; }
 

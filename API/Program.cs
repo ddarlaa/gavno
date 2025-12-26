@@ -1,4 +1,5 @@
 using FluentMigrator.Runner;
+using FluentMigrator.Runner.Processors;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using IceBreakerApp.API.Middleware;
@@ -11,7 +12,6 @@ using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IRepositories;
 using Infrastructure.Repositories;
-using Microsoft.EntityFrameworkCore;
 using IceBreakerApp.Application.Services;
 using IceBreakerApp.Application.Validators;
 using IceBreakerApp.Application.IServices;
@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,6 +30,8 @@ var builder = WebApplication.CreateBuilder(args);
 // =============================================================================
 // КОНФИГУРАЦИЯ СЕРВИСОВ
 // =============================================================================
+// В самом начале метода Main
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 // Логирование
 builder.Logging.ClearProviders();
@@ -38,15 +41,19 @@ builder.Logging.AddDebug();
 // Настройка контекста базы данных для Entity Framework
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(connectionString,
-        npgsqlOptions => npgsqlOptions.CommandTimeout(30)));
+{
+    // EF Core используется только как ORM, миграции управляются FluentMigrator
+    options.UseNpgsql(connectionString);
+    options.EnableSensitiveDataLogging();
+});
+
 
 // Fluent Migrator
 builder.Services.AddFluentMigratorCore()
     .ConfigureRunner(rb => rb
         .AddPostgres()
         .WithGlobalConnectionString(connectionString)
-        .ScanIn(typeof(Migrations.InitialCreate).Assembly).For.Migrations())
+        .ScanIn(typeof(Migrations.InitialCreate).Assembly).For.All())
     .AddLogging(lb => lb.AddFluentMigratorConsole());
 
 // JWT Configuration
@@ -154,7 +161,10 @@ builder.Services.AddCors(options => options.AddPolicy("ApiCorsPolicy", policy =>
 
 // Валидация
 builder.Services.AddFluentValidationAutoValidation();
-builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
+
+// Явно регистрируем только синхронные валидаторы для избежания конфликтов с асинхронными
+builder.Services.AddScoped<IValidator<RegisterRequestDTO>, RegisterRequestSyncValidator>();
+builder.Services.AddScoped<RegisterRequestSyncValidator>();
 
 // AutoMapper
 builder.Services.AddAutoMapper(cfg =>
@@ -267,7 +277,7 @@ if (!app.Environment.IsDevelopment())
 // Middleware pipeline
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.UseCors("ApiCorsPolicy");
-app.UseAuthentication(); // ДОБАВЛЕНО - критически важно
+app.UseAuthentication(); 
 app.UseAuthorization();
 
 // Swagger UI

@@ -63,13 +63,21 @@ namespace Infrastructure.Data
             modelBuilder.Entity<Permission>().HasData(permissions);
 
             // Связывание ролей с разрешениями
-            var rolePermissions = new List<object>();
+            var rolePermissions = new List<RolePermission>();
+            var permissionIdCounter = 1; 
             
             // Administrator - все разрешения
             var adminRole = roles.First(r => r.Name == "Administrator");
             foreach (var permission in permissions)
             {
-                rolePermissions.Add(new { RoleId = adminRole.Id, PermissionId = permission.Id });
+                rolePermissions.Add(new RolePermission
+                {
+                    Id = permissionIdCounter++, // ЯВНО задаем Id
+                    RoleId = adminRole.Id,
+                    PermissionId = permission.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
             }
 
             // Moderator - модерация и управление контентом
@@ -83,7 +91,14 @@ namespace Infrastructure.Data
             
             foreach (var permission in moderatorPermissions)
             {
-                rolePermissions.Add(new { RoleId = moderatorRole.Id, PermissionId = permission.Id });
+                rolePermissions.Add(new RolePermission
+                {
+                    Id = permissionIdCounter++,
+                    RoleId = moderatorRole.Id,
+                    PermissionId = permission.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
             }
 
             // ContentCreator - создание и редактирование контента
@@ -95,7 +110,14 @@ namespace Infrastructure.Data
             
             foreach (var permission in contentCreatorPermissions)
             {
-                rolePermissions.Add(new { RoleId = contentCreatorRole.Id, PermissionId = permission.Id });
+                rolePermissions.Add(new RolePermission
+                {
+                    Id = permissionIdCounter++,
+                    RoleId = contentCreatorRole.Id,
+                    PermissionId = permission.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
             }
 
             // PremiumUser - расширенные возможности
@@ -107,7 +129,14 @@ namespace Infrastructure.Data
             
             foreach (var permission in premiumUserPermissions)
             {
-                rolePermissions.Add(new { RoleId = premiumUserRole.Id, PermissionId = permission.Id });
+                rolePermissions.Add(new RolePermission
+                {
+                    Id = permissionIdCounter++,
+                    RoleId = premiumUserRole.Id,
+                    PermissionId = permission.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
             }
 
             // User - базовые возможности
@@ -118,7 +147,14 @@ namespace Infrastructure.Data
             
             foreach (var permission in userPermissions)
             {
-                rolePermissions.Add(new { RoleId = userRole.Id, PermissionId = permission.Id });
+                rolePermissions.Add(new RolePermission
+                {
+                    Id = permissionIdCounter++,
+                    RoleId = userRole.Id,
+                    PermissionId = permission.Id,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
             }
 
             modelBuilder.Entity<RolePermission>().HasData(rolePermissions);

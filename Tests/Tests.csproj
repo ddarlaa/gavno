@@ -39,4 +39,20 @@
         <ProjectReference Include="..\Infrastructure\Infrastructure.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Content Include="obj\Debug\net9.0\Tests.AssemblyInfoInputs.cache" />
+      <Content Include="obj\Debug\net9.0\Tests.csproj.AssemblyReference.cache" />
+      <Content Include="obj\Debug\net9.0\Tests.csproj.CoreCompileInputs.cache" />
+      <Content Include="obj\Debug\net9.0\Tests.csproj.Up2Date" />
+      <Content Include="obj\Debug\net9.0\Tests.dll" />
+      <Content Include="obj\Debug\net9.0\Tests.GeneratedMSBuildEditorConfig.editorconfig" />
+      <Content Include="obj\Debug\net9.0\Tests.genruntimeconfig.cache" />
+      <Content Include="obj\Debug\net9.0\Tests.pdb" />
+      <Content Include="obj\Debug\net9.0\Tests.sourcelink.json" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Include="obj\Debug\net9.0\Tests.AssemblyInfo.cs" />
+    </ItemGroup>
+
 </Project>

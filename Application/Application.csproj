@@ -18,6 +18,21 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="obj\Debug\net9.0\Applicat.44B5EDA2.Up2Date" />
+    <Content Include="obj\Debug\net9.0\Application.AssemblyInfoInputs.cache" />
+    <Content Include="obj\Debug\net9.0\Application.csproj.AssemblyReference.cache" />
+    <Content Include="obj\Debug\net9.0\Application.csproj.CoreCompileInputs.cache" />
+    <Content Include="obj\Debug\net9.0\Application.dll" />
+    <Content Include="obj\Debug\net9.0\Application.GeneratedMSBuildEditorConfig.editorconfig" />
+    <Content Include="obj\Debug\net9.0\Application.pdb" />
+    <Content Include="obj\Debug\net9.0\Application.sourcelink.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="obj\Debug\net9.0\Application.AssemblyInfo.cs" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

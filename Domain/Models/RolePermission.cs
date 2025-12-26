@@ -5,6 +5,16 @@ namespace IceBreakerApp.Domain.Models;
 
 public class RolePermission
 {
+ 
+  [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public int Id { get; set; }
+
+    [Required]
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    [Required]
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    
     [Required]
     public Guid RoleId { get; set; }
 
@@ -18,17 +28,7 @@ public class RolePermission
     [ForeignKey(nameof(PermissionId))]
     public Permission Permission { get; set; } = null!;
 
-    // Составной ключ
-    public static bool operator ==(RolePermission? left, RolePermission? right)
-    {
-        return Equals(left, right);
-    }
-
-    public static bool operator !=(RolePermission? left, RolePermission? right)
-    {
-        return !Equals(left, right);
-    }
-
+    // Уникальный индекс для предотвращения дубликатов
     public override bool Equals(object? obj)
     {
         if (obj is not RolePermission other)

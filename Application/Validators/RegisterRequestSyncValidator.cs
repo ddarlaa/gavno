@@ -1,30 +1,23 @@
 using FluentValidation;
 using IceBreakerApp.Application.DTOs;
-using IceBreakerApp.Application.IRepositories;
 
 namespace IceBreakerApp.Application.Validators
 {
-    public class RegisterRequestValidator : AbstractValidator<RegisterRequestDTO>
+    public class RegisterRequestSyncValidator : AbstractValidator<RegisterRequestDTO>
     {
-        private readonly IUserRepository _userRepository;
-
-        public RegisterRequestValidator(IUserRepository userRepository)
+        public RegisterRequestSyncValidator()
         {
-            _userRepository = userRepository;
-
-            // Email validation
+            // Email basic validation
             RuleFor(x => x.Email)
                 .NotEmpty().WithMessage("Email is required")
                 .EmailAddress().WithMessage("Invalid email format")
-                .MaximumLength(200).WithMessage("Email must not exceed 200 characters")
-                .MustAsync(BeUniqueEmailAsync).WithMessage("Email already exists");
-
-            // Username validation
+                .MaximumLength(200).WithMessage("Email must not exceed 200 characters");
+            
+            // Username basic validation
             RuleFor(x => x.Username)
                 .NotEmpty().WithMessage("Username is required")
                 .Length(3, 50).WithMessage("Username must be between 3 and 50 characters")
-                .Matches("^[a-zA-Z0-9_]+$").WithMessage("Username can only contain letters, numbers and underscores")
-                .MustAsync(BeUniqueUsernameAsync).WithMessage("Username already exists");
+                .Matches("^[a-zA-Z0-9_]+$").WithMessage("Username can only contain letters, numbers and underscores");
 
             // Password validation
             RuleFor(x => x.Password)
@@ -54,23 +47,11 @@ namespace IceBreakerApp.Application.Validators
                 .Matches(@"^\+?[1-9]\d{1,14}$").WithMessage("Invalid phone number format")
                 .When(x => !string.IsNullOrEmpty(x.PhoneNumber));
 
-            // Date of birth validation (if provided)
+            // Date of birth validation
             RuleFor(x => x.DateOfBirth)
                 .LessThan(DateTime.Today).WithMessage("Date of birth must be in the past")
                 .Must(BeAtLeast18YearsOld).WithMessage("Must be at least 18 years old")
                 .When(x => x.DateOfBirth.HasValue);
-        }
-
-        private async Task<bool> BeUniqueUsernameAsync(string username, CancellationToken cancellationToken)
-        {
-            var exists = await _userRepository.UsernameExistsAsync(username, cancellationToken);
-            return !exists;
-        }
-
-        private async Task<bool> BeUniqueEmailAsync(string email, CancellationToken cancellationToken)
-        {
-            var exists = await _userRepository.EmailExistsAsync(email, cancellationToken);
-            return !exists;
         }
 
         private bool BeAtLeast18YearsOld(DateTime? dateOfBirth)

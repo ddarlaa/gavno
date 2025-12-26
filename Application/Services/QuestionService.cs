@@ -7,6 +7,7 @@ using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Domain;
 using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
+using IceBreakerApp.Domain;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.Extensions.Logging;
 
@@ -134,8 +135,8 @@ namespace IceBreakerApp.Application.Services
                 // Создаем вопрос
                 var question = _mapper.Map<Question>(dto);
                 question.Id = Guid.NewGuid();
-                question.CreatedAt = DateTime.UtcNow;
-                question.UpdatedAt = DateTime.UtcNow;
+                question.CreatedAt = DateTime.UtcNow.ToPostgreSafeUtc();
+                question.UpdatedAt = DateTime.UtcNow.ToPostgreSafeUtc();
                 question.IsActive = true;
                 question.ViewCount = 0;
                 question.LikeCount = 0;
@@ -188,7 +189,7 @@ namespace IceBreakerApp.Application.Services
                 if (dto.TopicId.HasValue)
                     question.TopicId = dto.TopicId.Value;
 
-                question.UpdatedAt = DateTime.UtcNow;
+                question.UpdatedAt = DateTime.UtcNow.ToPostgreSafeUtc();
 
                 await _questionRepository.UpdateAsync(question, ct);
 
@@ -228,7 +229,7 @@ namespace IceBreakerApp.Application.Services
                     question.TopicId = updateDto.TopicId.Value;
                 }
 
-                question.UpdatedAt = DateTime.UtcNow;
+                question.UpdatedAt = DateTime.UtcNow.ToPostgreSafeUtc();
 
                 await _questionRepository.UpdateAsync(question, ct);
 
@@ -251,7 +252,7 @@ namespace IceBreakerApp.Application.Services
 
                 // Soft delete
                 question.IsActive = false;
-                question.UpdatedAt = DateTime.UtcNow;
+                question.UpdatedAt = DateTime.UtcNow.ToPostgreSafeUtc();
 
                 await _questionRepository.UpdateAsync(question, ct);
 

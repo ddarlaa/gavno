@@ -5,10 +5,10 @@ namespace IceBreakerApp.Domain.Models;
 
 public class UserRole
 {
-    [Required]
+    [Key, Column(Order = 0)]
     public Guid UserId { get; set; }
 
-    [Required]
+    [Key, Column(Order = 1)]
     public Guid RoleId { get; set; }
 
     [Required]
@@ -18,34 +18,11 @@ public class UserRole
 
     // Навигационные свойства
     [ForeignKey(nameof(UserId))]
-    public User User { get; set; } = null!;
+    public virtual User User { get; set; } = null!;
 
     [ForeignKey(nameof(RoleId))]
-    public Role Role { get; set; } = null!;
+    public virtual Role Role { get; set; } = null!;
 
     [ForeignKey(nameof(AssignedBy))]
-    public User? AssignedByUser { get; set; }
-
-    // Составной ключ
-    public static bool operator ==(UserRole? left, UserRole? right)
-    {
-        return Equals(left, right);
-    }
-
-    public static bool operator !=(UserRole? left, UserRole? right)
-    {
-        return !Equals(left, right);
-    }
-
-    public override bool Equals(object? obj)
-    {
-        if (obj is not UserRole other)
-            return false;
-        return UserId == other.UserId && RoleId == other.RoleId;
-    }
-
-    public override int GetHashCode()
-    {
-        return HashCode.Combine(UserId, RoleId);
-    }
+    public virtual User? AssignedByUser { get; set; }
 }

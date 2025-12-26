@@ -11,4 +11,18 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="obj\Debug\net9.0\Domain.AssemblyInfoInputs.cache" />
+    <Content Include="obj\Debug\net9.0\Domain.csproj.AssemblyReference.cache" />
+    <Content Include="obj\Debug\net9.0\Domain.csproj.CoreCompileInputs.cache" />
+    <Content Include="obj\Debug\net9.0\Domain.dll" />
+    <Content Include="obj\Debug\net9.0\Domain.GeneratedMSBuildEditorConfig.editorconfig" />
+    <Content Include="obj\Debug\net9.0\Domain.pdb" />
+    <Content Include="obj\Debug\net9.0\Domain.sourcelink.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="obj\Debug\net9.0\Domain.AssemblyInfo.cs" />
+  </ItemGroup>
+
 </Project>

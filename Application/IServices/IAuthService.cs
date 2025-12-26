@@ -1,4 +1,5 @@
 using IceBreakerApp.Application.DTOs;
+using FluentValidation.Results;
 
 namespace IceBreakerApp.Application.IServices
 {
@@ -13,5 +14,8 @@ namespace IceBreakerApp.Application.IServices
         Task<string> GenerateConfirmationTokenAsync(Guid userId, CancellationToken cancellationToken = default);
         Task<bool> IsEmailConfirmedAsync(Guid userId, CancellationToken cancellationToken = default);
         Task<bool> ResendConfirmationEmailAsync(string email, CancellationToken cancellationToken = default);
+        
+        // Дополнительная валидация уникальности для обхода ограничений ASP.NET
+        Task<ValidationResult> ValidateUserUniquenessAsync(RegisterRequestDTO request, CancellationToken cancellationToken = default);
     }
 }

@@ -1,11 +1,16 @@
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
-using System.IdentityModel.Tokens.Jwt;
-using BCrypt.Net;
+using FluentValidation;
+using FluentValidation.Results;
+using IceBreakerApp.Application.Authorization;
+using IceBreakerApp.Application.Authorization.Handlers;
+using IceBreakerApp.Application.Authorization.Requirements;
 using IceBreakerApp.Application.DTOs;
-using IceBreakerApp.Application.IServices;
+using IceBreakerApp.Application.DTOs.Response;
+using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IRepositories;
+using IceBreakerApp.Application.IServices;
+using IceBreakerApp.Application.Validators;
+using IceBreakerApp.Domain;
+using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -77,7 +82,6 @@ namespace IceBreakerApp.Application.Services
                     PasswordHash = passwordHash,
                     FirstName = request.FirstName,
                     LastName = request.LastName,
-                    IsEmailConfirmed = false, // Не делаем двухфакторную валидацию
                     IsActive = true,
                     IsDeleted = false
                 };
@@ -147,7 +151,7 @@ namespace IceBreakerApp.Application.Services
                 }
 
                 // 3. Обновление времени последнего входа
-                user.LastLoginAt = DateTime.UtcNow;
+                user.LastLoginAt = DateTime.UtcNow.ToPostgreSafeUtc();
                 await _userRepository.UpdateAsync(user, cancellationToken);
 
                 // 4. Генерация JWT токенов
@@ -164,9 +168,8 @@ namespace IceBreakerApp.Application.Services
                     Id = Guid.NewGuid(),
                     UserId = user.Id,
                     RefreshTokenHash = refreshTokenHash,
-                    ExpiresAt = DateTime.UtcNow.AddDays(7), // Refresh токен действует 7 дней
-                    IsRevoked = false,
-                    CreatedAt = DateTime.UtcNow
+                    ExpiresAt = DateTime.UtcNow.AddDays(7).ToPostgreSafeUtc(), // Refresh токен действует 7 дней
+                    CreatedAt = DateTime.UtcNow.ToPostgreSafeUtc()
                 };
 
                 await _userRepository.AddSessionAsync(session, cancellationToken);
@@ -201,7 +204,7 @@ namespace IceBreakerApp.Application.Services
                 }
 
                 // Проверяем, что токен не истек
-                if (session.ExpiresAt <= DateTime.UtcNow)
+                if (session.ExpiresAt <= DateTime.UtcNow.ToPostgreSafeUtc())
                 {
                     session.IsRevoked = true;
                     await _userRepository.SaveChangesAsync(cancellationToken);
@@ -225,7 +228,7 @@ namespace IceBreakerApp.Application.Services
 
                 // Обновляем сессию
                 session.RefreshTokenHash = newRefreshTokenHash;
-                session.ExpiresAt = DateTime.UtcNow.AddDays(7);
+                session.ExpiresAt = DateTime.UtcNow.AddDays(7).ToPostgreSafeUtc();
                 await _userRepository.SaveChangesAsync(cancellationToken);
 
                 _logger.LogInformation("Token refreshed successfully for user: {UserId}", user.Id);
@@ -343,6 +346,43 @@ namespace IceBreakerApp.Application.Services
                 _logger.LogError(ex, "Error resending confirmation email for: {Email}", email);
                 return false;
             }
+        }
+
+        public async Task<ValidationResult> ValidateUserUniquenessAsync(
+            RegisterRequestDTO request, 
+            CancellationToken cancellationToken = default)
+        {
+            var validationResult = new ValidationResult();
+            
+            try
+            {
+                // Проверка уникальности email
+                var emailExists = await _userRepository.EmailExistsAsync(request.Email, cancellationToken);
+                if (emailExists)
+                {
+                    validationResult.Errors.Add(new ValidationFailure(
+                        nameof(request.Email), 
+                        "Email already exists"));
+                }
+
+                // Проверка уникальности username
+                var usernameExists = await _userRepository.UsernameExistsAsync(request.Username, cancellationToken);
+                if (usernameExists)
+                {
+                    validationResult.Errors.Add(new ValidationFailure(
+                        nameof(request.Username), 
+                        "Username already exists"));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating user uniqueness for: {Email}", request.Email);
+                validationResult.Errors.Add(new ValidationFailure(
+                    string.Empty, 
+                    "Database error during validation"));
+            }
+
+            return validationResult;
         }
     }
 }

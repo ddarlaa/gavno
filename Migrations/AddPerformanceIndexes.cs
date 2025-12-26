@@ -2,7 +2,7 @@
 //
 // namespace Migrations;
 //
-// [Migration(20251210000002)]
+// [Migration(20251216000002)]
 // /// <summary>
 // /// Миграция для добавления составных индексов и дополнительных оптимизаций производительности
 // /// </summary>
@@ -69,7 +69,34 @@
 //         Execute.Sql("ALTER TABLE Users ADD CONSTRAINT CK_Users_Username_MaxLength CHECK (LENGTH(TRIM(Username)) <= 100)");
 //
 //         // Ограничение на правильность email (базовая проверка)
-//         Execute.Sql("ALTER TABLE Users ADD CONSTRAINT CK_Users_Email_Format CHECK (Email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$')");
+//         Execute.Sql("ALTER TABLE Users ADD CONSTRAINT CK_Users_Email_Format CHECK (Email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}
+//     }
+//
+//     public override void Down()
+//     {
+//         // ====================================================================
+//         // УДАЛЕНИЕ СОСТАВНЫХ ИНДЕКСОВ
+//         // ====================================================================
+//         
+//         Delete.Index("IX_QuestionAnswers_UserId_IsActive_CreatedAt").OnTable("QuestionAnswers");
+//         Delete.Index("IX_QuestionAnswers_QuestionId_IsAccepted_CreatedAt").OnTable("QuestionAnswers");
+//         
+//         Delete.Index("IX_Questions_Title_Content").OnTable("Questions");
+//         Delete.Index("IX_Questions_UserId_IsActive_LikeCount").OnTable("Questions");
+//         Delete.Index("IX_Questions_TopicId_IsActive_CreatedAt").OnTable("Questions");
+//
+//         // ====================================================================
+//         // УДАЛЕНИЕ ОГРАНИЧЕНИЙ
+//         // ====================================================================
+//         
+//         Execute.Sql("ALTER TABLE Users DROP CONSTRAINT IF EXISTS CK_Users_Email_Format");
+//         Execute.Sql("ALTER TABLE Users DROP CONSTRAINT IF EXISTS CK_Users_Username_MaxLength");
+//         Execute.Sql("ALTER TABLE Users DROP CONSTRAINT IF EXISTS CK_Users_Username_MinLength");
+//         
+//         Execute.Sql("ALTER TABLE Questions DROP CONSTRAINT IF EXISTS CK_Questions_Content_MinLength");
+//         Execute.Sql("ALTER TABLE Questions DROP CONSTRAINT IF EXISTS CK_Questions_Title_MinLength");
+//     }
+// })")
 //     }
 //
 //     public override void Down()

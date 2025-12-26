@@ -24,8 +24,8 @@ public class QuestionAnswer : BaseEntity
 
     // Навигационные свойства
     [ForeignKey(nameof(QuestionId))]
-    public Question Question { get; set; } = null!;
+    public virtual Question Question { get; set; } = null!;
 
     [ForeignKey(nameof(UserId))]
-    public User User { get; set; } = null!;
+    public virtual User User { get; set; } = null!;
 }
