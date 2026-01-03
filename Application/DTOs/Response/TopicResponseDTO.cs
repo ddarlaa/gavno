@@ -1,17 +1,11 @@
-﻿namespace IceBreakerApp.Application.DTOs.Update;
+﻿namespace IceBreakerApp.Application.DTOs.Response;
 
 public class TopicResponseDTO
 {
-    public TopicResponseDTO(Guid id, string name, string description, DateTime createdAt)
-    {
-        Id = id;
-        Name = name;
-        Description = description;
-        CreatedAt = createdAt;
-    }
-
     public Guid Id { get; set; }
-    public string Name { get; set; }
-    public string Description { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public bool IsActive { get; set; }
 }

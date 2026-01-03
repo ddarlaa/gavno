@@ -1,14 +1,10 @@
-using AutoFixture;
-using AutoFixture.AutoMoq;
 using FluentAssertions;
-using FluentValidation;
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Create;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IServices;
-
-using Microsoft.Extensions.DependencyInjection;
+using IceBreakerApp.Application.Validators;
 using Moq;
 
 namespace IceBreakerApp.Tests;
@@ -354,7 +350,13 @@ public class CreateQuestionValidatorTests
         _userServiceMock.Setup(x => x.GetByIdAsync(dto.UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new UserResponseDTO());
         _topicServiceMock.Setup(x => x.GetByIdAsync(dto.TopicId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TopicResponseDTO(Guid.NewGuid(), "Topic", "Description", DateTime.UtcNow));
+            .ReturnsAsync(new TopicResponseDTO 
+            { 
+                Id = Guid.NewGuid(), 
+                Name = "Topic", 
+                Description = "Description", 
+                CreatedAt = DateTime.UtcNow 
+            });
 
         // Act
         var result = await _validator.ValidateAsync(dto);

@@ -1,86 +1,38 @@
-﻿// Domain/Question.cs
 using System.ComponentModel.DataAnnotations;
-using IceBreakerApp.Domain.Models;
+using System.ComponentModel.DataAnnotations.Schema;
 
-namespace IceBreakerApp.Domain;
+namespace IceBreakerApp.Domain.Models;
+
 public class Question : BaseEntity
 {
-    public Guid UserId { get; private set; }
-    public Guid TopicId { get; private set; }
-    public string Title { get; private set; } = string.Empty;
-    public string Content { get; private set; } = string.Empty;
-    public int ViewCount { get; private set; }
-    public int LikeCount { get; private set; }
-    public int AnswerCount { get; private set; }
-    public static Question Create(Guid userId, Guid topicId, string title, string content)
-    {
-        if (userId == Guid.Empty)
-            throw new ArgumentException("UserId cannot be empty", nameof(userId));
-        if (topicId == Guid.Empty)
-            throw new ArgumentException("TopicId cannot be empty", nameof(topicId));
-        if (string.IsNullOrWhiteSpace(title))
-            throw new ArgumentException("Title is required", nameof(title));
-        if (string.IsNullOrWhiteSpace(content))
-            throw new ArgumentException("Content is required", nameof(content));
+    [Required]
+    [MaxLength(500)]
+    public string Title { get; set; } = null!;
 
-        return new Question
-        {
-            UserId = userId,
-            TopicId = topicId,
-            Title = title.Trim(),
-            Content = content.Trim()
-        };
-    }
+    [Required]
+    public string Content { get; set; } = null!;
 
-    public void Update(string? title, string? content, Guid? topicId)
-    {
-        if (!string.IsNullOrWhiteSpace(title))
-            Title = title.Trim();
-        
-        if (!string.IsNullOrWhiteSpace(content))
-            Content = content.Trim();
-        
-        if (topicId.HasValue && topicId.Value != Guid.Empty)
-            TopicId = topicId.Value;
+    [Required]
+    public Guid UserId { get; set; }
 
-        UpdatedAt = DateTime.UtcNow;
-    }
+    [Required]
+    public Guid TopicId { get; set; }
 
-    public void IncrementViewCount()
-    {
-        ViewCount++;
-        UpdatedAt = DateTime.UtcNow;
-    }
+    public int ViewCount { get; set; } = 0;
+    public int LikeCount { get; set; } = 0;
+    public int AnswerCount { get; set; } = 0;
 
-    public void IncrementLikeCount()
-    {
-        LikeCount++;
-        UpdatedAt = DateTime.UtcNow;
-    }
+    [Required]
+    public bool IsActive { get; set; } = true;
 
-    public void DecrementLikeCount()
-    {
-        if (LikeCount > 0)
-            LikeCount--;
-        UpdatedAt = DateTime.UtcNow;
-    }
+    // Навигационные свойства
+    [ForeignKey(nameof(UserId))]
+    public virtual User User { get; set; } = null!;
 
-    public void IncrementAnswerCount()
-    {
-        AnswerCount++;
-        UpdatedAt = DateTime.UtcNow;
-    }
+    [ForeignKey(nameof(TopicId))]
+    public virtual Topic Topic { get; set; } = null!;
 
-    public void DecrementAnswerCount()
-    {
-        if (AnswerCount > 0)
-            AnswerCount--;
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    public void Delete()
-    {
-        IsActive = false;
-        UpdatedAt = DateTime.UtcNow;
-    }
+    // Коллекции
+    public virtual ICollection<QuestionAnswer> Answers { get; set; } = new List<QuestionAnswer>();
+    public virtual ICollection<QuestionLike> Likes { get; set; } = new List<QuestionLike>();
 }

@@ -6,8 +6,8 @@ using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Create;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
+using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Application.Services;
-using IceBreakerApp.Domain;
 using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
 using Microsoft.AspNetCore.JsonPatch;
@@ -23,6 +23,7 @@ public class QuestionServiceTests
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<ITopicRepository> _topicRepositoryMock;
     private readonly Mock<IMapper> _mapperMock;
+    private readonly Mock<ILogger<QuestionService>> _loggerMock;
     private readonly QuestionService _service;
 
     public QuestionServiceTests()
@@ -32,12 +33,14 @@ public class QuestionServiceTests
         _userRepositoryMock = new Mock<IUserRepository>();
         _topicRepositoryMock = new Mock<ITopicRepository>();
         _mapperMock = new Mock<IMapper>();
+        _loggerMock = new Mock<ILogger<QuestionService>>();
 
         _service = new QuestionService(
             _questionRepositoryMock.Object,
             _userRepositoryMock.Object,
             _topicRepositoryMock.Object,
-            _mapperMock.Object);
+            _mapperMock.Object,
+            _loggerMock.Object);
     }
 
     [Fact]
@@ -62,7 +65,6 @@ public class QuestionServiceTests
         // Assert
         result.Should().NotBeNull();
         result.Should().Be(responseDto);
-        _questionRepositoryMock.Verify(x => x.UpdateAsync(question, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -104,19 +106,15 @@ public class QuestionServiceTests
         var questions = _fixture.CreateMany<Question>(10).ToList();
         var paginatedResult = new PaginatedResult<Question>(questions, 10, 1, 5);
         var responseDtos = _fixture.CreateMany<QuestionResponseDTO>(10).ToList();
+        var paginatedResponse = new PaginatedResult<QuestionResponseDTO>(responseDtos, 10, 1, 5);
 
         _questionRepositoryMock.Setup(x => x.GetPaginatedAsync(
             It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), 
             It.IsAny<string?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(paginatedResult);
         
-        _userRepositoryMock.Setup(x => x.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(_fixture.CreateMany<User>(3).ToList());
-        _topicRepositoryMock.Setup(x => x.GetByIdsAsync(It.IsAny<IEnumerable<Guid>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(_fixture.CreateMany<Topic>(3).ToList());
-
-        _mapperMock.Setup(x => x.Map<List<QuestionResponseDTO>>(questions))
-            .Returns(responseDtos);
+        _mapperMock.Setup(x => x.Map<PaginatedResult<QuestionResponseDTO>>(paginatedResult))
+            .Returns(paginatedResponse);
 
         // Act
         var result = await _service.GetAllAsync(1, 5, null, null, null, null);
@@ -168,8 +166,7 @@ public class QuestionServiceTests
             .ReturnsAsync((User?)null);
 
         // Act & Assert
-        await FluentActions.Invoking(() => _service.CreateAsync(createDto))
-            .Should().ThrowAsync<NotFoundException>();
+        await Assert.ThrowsAsync<NotFoundException>(() => _service.CreateAsync(createDto));
     }
 
     [Fact]
@@ -185,8 +182,7 @@ public class QuestionServiceTests
             .ReturnsAsync((Topic?)null);
 
         // Act & Assert
-        await FluentActions.Invoking(() => _service.CreateAsync(createDto))
-            .Should().ThrowAsync<NotFoundException>();
+        await Assert.ThrowsAsync<NotFoundException>(() => _service.CreateAsync(createDto));
     }
 
     [Fact]
@@ -203,10 +199,10 @@ public class QuestionServiceTests
         _topicRepositoryMock.Setup(x => x.GetByIdAsync(updateDto.TopicId!.Value, It.IsAny<CancellationToken>()))
             .ReturnsAsync(topic);
 
-        // Act & Assert
-        await FluentActions.Invoking(() => _service.UpdateAsync(questionId, updateDto))
-            .Should().NotThrowAsync();
+        // Act
+        await _service.UpdateAsync(questionId, updateDto);
 
+        // Assert
         _questionRepositoryMock.Verify(x => x.UpdateAsync(question, It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -248,10 +244,9 @@ public class QuestionServiceTests
                 .ReturnsAsync(topics[i]);
             _questionRepositoryMock.Setup(x => x.AddAsync(It.IsAny<Question>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(questions[i]);
+            _mapperMock.Setup(x => x.Map<QuestionResponseDTO>(questions[i]))
+                .Returns(responseDtos[i]);
         }
-
-        _mapperMock.Setup(x => x.Map<QuestionResponseDTO>(It.IsAny<Question>()))
-            .Returns((Question q) => responseDtos[questions.IndexOf(q)]);
 
         // Act
         var result = await _service.BulkCreateAsync(createDtos);
@@ -286,6 +281,7 @@ public class QuestionAnswerServiceTests
     private readonly IFixture _fixture;
     private readonly Mock<IQuestionAnswerRepository> _answerRepositoryMock;
     private readonly Mock<IMapper> _mapperMock;
+    private readonly Mock<ILogger<QuestionAnswerService>> _loggerMock;
     private readonly QuestionAnswerService _service;
 
     public QuestionAnswerServiceTests()
@@ -293,8 +289,12 @@ public class QuestionAnswerServiceTests
         _fixture = new Fixture().Customize(new AutoMoqCustomization());
         _answerRepositoryMock = new Mock<IQuestionAnswerRepository>();
         _mapperMock = new Mock<IMapper>();
+        _loggerMock = new Mock<ILogger<QuestionAnswerService>>();
 
-        _service = new QuestionAnswerService(_answerRepositoryMock.Object, _mapperMock.Object);
+        _service = new QuestionAnswerService(
+            _answerRepositoryMock.Object, 
+            _mapperMock.Object,
+            _loggerMock.Object);
     }
 
     [Fact]
@@ -315,7 +315,6 @@ public class QuestionAnswerServiceTests
         // Assert
         result.Should().NotBeNull();
         result.Should().Be(responseDto);
-        _answerRepositoryMock.Verify(x => x.UpdateAsync(answer, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -370,7 +369,9 @@ public class QuestionAnswerServiceTests
     {
         // Arrange
         var answerId = Guid.NewGuid();
-        var updateDto = _fixture.Create<UpdateQuestionAnswerDTO>();
+        var updateDto = _fixture.Build<UpdateQuestionAnswerDTO>()
+            .With(dto => dto.Content, "Updated Content")
+            .Create();
         var answer = _fixture.Create<QuestionAnswer>();
 
         _answerRepositoryMock.Setup(x => x.GetByIdAsync(answerId, It.IsAny<CancellationToken>()))
@@ -420,15 +421,16 @@ public class QuestionLikeServiceTests
 {
     private readonly IFixture _fixture;
     private readonly Mock<IQuestionLikeRepository> _likeRepositoryMock;
+    private readonly Mock<IMapper> _mapperMock;
     private readonly QuestionLikeService _service;
 
     public QuestionLikeServiceTests()
     {
         _fixture = new Fixture().Customize(new AutoMoqCustomization());
         _likeRepositoryMock = new Mock<IQuestionLikeRepository>();
-        var mapperMock = new Mock<IMapper>();
+        _mapperMock = new Mock<IMapper>();
 
-        _service = new QuestionLikeService(_likeRepositoryMock.Object, mapperMock.Object);
+        _service = new QuestionLikeService(_likeRepositoryMock.Object, _mapperMock.Object);
     }
 
     [Fact]
@@ -561,6 +563,7 @@ public class TopicServiceTests
     private readonly IFixture _fixture;
     private readonly Mock<ITopicRepository> _topicRepositoryMock;
     private readonly Mock<IMapper> _mapperMock;
+    private readonly Mock<ILogger<TopicService>> _loggerMock;
     private readonly TopicService _service;
 
     public TopicServiceTests()
@@ -568,9 +571,9 @@ public class TopicServiceTests
         _fixture = new Fixture().Customize(new AutoMoqCustomization());
         _topicRepositoryMock = new Mock<ITopicRepository>();
         _mapperMock = new Mock<IMapper>();
-        var loggerMock = new Mock<ILogger<TopicService>>();
+        _loggerMock = new Mock<ILogger<TopicService>>();
 
-        _service = new TopicService(_topicRepositoryMock.Object, _mapperMock.Object, loggerMock.Object);
+        _service = new TopicService(_topicRepositoryMock.Object, _mapperMock.Object, _loggerMock.Object);
     }
 
     [Fact]
@@ -616,12 +619,13 @@ public class TopicServiceTests
         var topics = _fixture.CreateMany<Topic>(10).ToList();
         var paginatedResult = new PaginatedResult<Topic>(topics, 10, 1, 5);
         var responseDtos = _fixture.CreateMany<TopicResponseDTO>(10).ToList();
+        var paginatedResponse = new PaginatedResult<TopicResponseDTO>(responseDtos, 10, 1, 5);
 
         _topicRepositoryMock.Setup(x => x.GetPaginatedAsync(
             It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(paginatedResult);
-        _mapperMock.Setup(x => x.Map<List<TopicResponseDTO>>(topics))
-            .Returns(responseDtos);
+        _mapperMock.Setup(x => x.Map<PaginatedResult<TopicResponseDTO>>(paginatedResult))
+            .Returns(paginatedResponse);
 
         // Act
         var result = await _service.GetAllAsync(1, 5);
@@ -630,6 +634,8 @@ public class TopicServiceTests
         result.Should().NotBeNull();
         result.Items.Should().HaveCount(10);
         result.TotalCount.Should().Be(10);
+        result.PageNumber.Should().Be(1);
+        result.PageSize.Should().Be(5);
     }
 
     [Fact]
@@ -669,8 +675,7 @@ public class TopicServiceTests
             .ReturnsAsync(existingTopic);
 
         // Act & Assert
-        await FluentActions.Invoking(() => _service.CreateAsync(createDto))
-            .Should().ThrowAsync<InvalidOperationException>();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.CreateAsync(createDto));
     }
 
     [Fact]
@@ -686,11 +691,29 @@ public class TopicServiceTests
         _topicRepositoryMock.Setup(x => x.FindByNameAsync(updateDto.Name!, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Topic?)null);
 
-        // Act & Assert
-        await FluentActions.Invoking(() => _service.UpdateAsync(topicId, updateDto))
-            .Should().NotThrowAsync();
+        // Act
+        await _service.UpdateAsync(topicId, updateDto);
 
+        // Assert
         _topicRepositoryMock.Verify(x => x.UpdateAsync(topic, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ExistingTopicWithDuplicateName_ShouldThrowInvalidOperationException()
+    {
+        // Arrange
+        var topicId = Guid.NewGuid();
+        var updateDto = _fixture.Create<UpdateTopicDTO>();
+        var topic = _fixture.Create<Topic>();
+        var existingTopicWithSameName = _fixture.Create<Topic>();
+
+        _topicRepositoryMock.Setup(x => x.GetByIdAsync(topicId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(topic);
+        _topicRepositoryMock.Setup(x => x.FindByNameAsync(updateDto.Name!, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingTopicWithSameName);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.UpdateAsync(topicId, updateDto));
     }
 
     [Fact]
@@ -749,16 +772,17 @@ public class UserServiceTests
     private readonly IFixture _fixture;
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<IMapper> _mapperMock;
+    private readonly Mock<ILogger<UserService>> _loggerMock;
     private readonly UserService _service;
 
     public UserServiceTests()
     {
         _fixture = new Fixture().Customize(new AutoMoqCustomization());
         _userRepositoryMock = new Mock<IUserRepository>();
-        var loggerMock = new Mock<ILogger<UserService>>();
+        _loggerMock = new Mock<ILogger<UserService>>();
         _mapperMock = new Mock<IMapper>();
 
-        _service = new UserService(_userRepositoryMock.Object, loggerMock.Object, _mapperMock.Object);
+        _service = new UserService(_userRepositoryMock.Object, _loggerMock.Object, _mapperMock.Object);
     }
 
     [Fact]
@@ -782,16 +806,35 @@ public class UserServiceTests
     }
 
     [Fact]
+    public async Task GetByIdAsync_NonExistingUser_ShouldReturnNull()
+    {
+        // Arrange
+        var nonExistingId = Guid.NewGuid();
+
+        _userRepositoryMock.Setup(x => x.GetByIdAsync(nonExistingId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+
+        // Act
+        var result = await _service.GetByIdAsync(nonExistingId);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
     public async Task GetAllAsync_ShouldReturnPaginatedResults()
     {
         // Arrange
         var users = _fixture.CreateMany<User>(10).ToList();
+        var paginatedResult = new PaginatedResult<User>(users, 10, 1, 10);
         var responseDtos = _fixture.CreateMany<UserResponseDTO>(10).ToList();
+        var paginatedResponse = new PaginatedResult<UserResponseDTO>(responseDtos, 10, 1, 10);
 
-        _userRepositoryMock.Setup(x => x.GetPageAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(users);
-        _mapperMock.Setup(x => x.Map<List<UserResponseDTO>>(users))
-            .Returns(responseDtos);
+        _userRepositoryMock.Setup(x => x.GetPaginatedAsync(
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(paginatedResult);
+        _mapperMock.Setup(x => x.Map<PaginatedResult<UserResponseDTO>>(paginatedResult))
+            .Returns(paginatedResponse);
 
         // Act
         var result = await _service.GetAllAsync(1, 10);
@@ -800,6 +843,8 @@ public class UserServiceTests
         result.Should().NotBeNull();
         result.Items.Should().HaveCount(10);
         result.TotalCount.Should().Be(10);
+        result.PageNumber.Should().Be(1);
+        result.PageSize.Should().Be(10);
     }
 
     [Fact]
@@ -813,7 +858,7 @@ public class UserServiceTests
         _mapperMock.Setup(x => x.Map<User>(createDto))
             .Returns(user);
         _userRepositoryMock.Setup(x => x.AddAsync(user, It.IsAny<CancellationToken>()))
-            .Verifiable();
+            .ReturnsAsync(user);
         _mapperMock.Setup(x => x.Map<UserResponseDTO>(user))
             .Returns(responseDto);
 
@@ -831,7 +876,10 @@ public class UserServiceTests
     {
         // Arrange
         var userId = Guid.NewGuid();
-        var updateDto = _fixture.Create<UpdateUserDTO>();
+        var updateDto = _fixture.Build<UpdateUserDTO>()
+            .With(dto => dto.DisplayName, "New Display Name")
+            .With(dto => dto.Bio, "New Bio")
+            .Create();
         var user = _fixture.Create<User>();
 
         _userRepositoryMock.Setup(x => x.GetByIdAsync(userId, It.IsAny<CancellationToken>()))

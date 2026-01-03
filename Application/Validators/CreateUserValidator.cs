@@ -1,6 +1,5 @@
 ﻿using FluentValidation;
 using IceBreakerApp.Application.DTOs.Create;
-using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.IServices;
 
 public class CreateUserValidator : AbstractValidator<CreateUserDTO>
@@ -15,12 +14,12 @@ public class CreateUserValidator : AbstractValidator<CreateUserDTO>
             .NotEmpty().WithMessage("Username is required")
             .Length(3, 50).WithMessage("Username must be between 3 and 50 characters")
             .Matches("^[a-zA-Z0-9_]+$").WithMessage("Username can only contain letters, numbers and underscores")
-            .MustAsync(BeUniqueUsername).WithMessage("Username already exists");
+            .Must(BeUniqueUsername).WithMessage("Username already exists"); 
 
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email is required")
             .EmailAddress().WithMessage("Invalid email format")
-            .MustAsync(BeUniqueEmail).WithMessage("Email already exists");
+            .Must(BeUniqueEmail).WithMessage("Email already exists");
 
         RuleFor(x => x.Password)
             .NotEmpty().WithMessage("Password is required")
@@ -39,15 +38,15 @@ public class CreateUserValidator : AbstractValidator<CreateUserDTO>
             .When(x => !string.IsNullOrEmpty(x.Bio));
     }
 
-    private async Task<bool> BeUniqueUsername(string username, CancellationToken ct)
+    // СИНХРОННЫЕ методы вместо async
+    private bool BeUniqueUsername(string username)
     {
-        var existingUser = await _userService.FindByUsernameAsync(username, ct);
-        return existingUser == null;
+        // Быстрая проверка БЕЗ CancellationToken
+        return _userService.FindByUsernameAsync(username, CancellationToken.None).Result == null;
     }
 
-    private async Task<bool> BeUniqueEmail(string email, CancellationToken ct)
+    private bool BeUniqueEmail(string email)
     {
-        var existingUser = await _userService.FindByEmailAsync(email, ct);
-        return existingUser == null;
+        return _userService.FindByEmailAsync(email, CancellationToken.None).Result == null;
     }
 }

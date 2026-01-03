@@ -2,6 +2,8 @@
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.IServices;
 
+namespace IceBreakerApp.Application.Validators;
+
 public class CreateQuestionValidator : AbstractValidator<CreateQuestionDTO>
 {
     private readonly IUserService _userService;
@@ -14,11 +16,11 @@ public class CreateQuestionValidator : AbstractValidator<CreateQuestionDTO>
 
         RuleFor(x => x.UserId)
             .NotEmpty().WithMessage("User ID is required")
-            .MustAsync(UserExists).WithMessage("User does not exist");
+            .Must(UserExists).WithMessage("User does not exist"); 
 
         RuleFor(x => x.TopicId)
             .NotEmpty().WithMessage("Topic ID is required")
-            .MustAsync(TopicExists).WithMessage("Topic does not exist");
+            .Must(TopicExists).WithMessage("Topic does not exist"); 
 
         RuleFor(x => x.Title)
             .NotEmpty().WithMessage("Title is required")
@@ -31,15 +33,13 @@ public class CreateQuestionValidator : AbstractValidator<CreateQuestionDTO>
             .MaximumLength(5000).WithMessage("Content must not exceed 5000 characters");
     }
 
-    private async Task<bool> UserExists(Guid userId, CancellationToken ct)
+    private bool UserExists(Guid userId) 
     {
-        var user = await _userService.GetByIdAsync(userId, ct);
-        return user != null;
+        return _userService.GetByIdAsync(userId, CancellationToken.None).Result != null;
     }
 
-    private async Task<bool> TopicExists(Guid topicId, CancellationToken ct)
+    private bool TopicExists(Guid topicId) 
     {
-        var topic = await _topicService.GetByIdAsync(topicId, ct);
-        return topic != null;
+        return _topicService.GetByIdAsync(topicId, CancellationToken.None).Result != null;
     }
 }

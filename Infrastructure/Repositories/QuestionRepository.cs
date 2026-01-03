@@ -1,6 +1,8 @@
 ﻿using IceBreakerApp.Application.DTOs;
+using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Domain;
 using IceBreakerApp.Domain.IRepositories;
+using IceBreakerApp.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repositories
@@ -72,15 +74,20 @@ namespace Infrastructure.Repositories
             await context.SaveChangesAsync(ct);
         }
 
-        public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+        public Task DeleteAsync(Guid id, CancellationToken ct = default)
         {
-            var question = await GetByIdAsync(id, ct);
-            if (question != null)
-            {
-                question.Delete();
-                await UpdateAsync(question, ct);
-            }
+            throw new NotImplementedException();
         }
+
+        // public async Task DeleteAsync(Guid id, CancellationToken ct = default)
+        // {
+        //     var question = await GetByIdAsync(id, ct);
+        //     if (question != null)
+        //     {
+        //         question.Delete();
+        //         await UpdateAsync(question, ct);
+        //     }
+        // }
 
         private static IQueryable<Question> ApplySorting(IQueryable<Question> questions, string? sortBy, string? sortOrder)
         {

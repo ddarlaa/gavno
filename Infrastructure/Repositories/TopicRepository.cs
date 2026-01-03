@@ -92,7 +92,7 @@ namespace Infrastructure.Repositories
 
         public async Task<IReadOnlyCollection<Topic>> GetByIdsAsync(IEnumerable<Guid> topicIds, CancellationToken ct)
         {
-            var idSet = topicIds.ToHashSet();
+            var idSet = topicIds as HashSet<Guid> ?? topicIds.ToHashSet();
         
             return await context.Topics
                 .Where(t => idSet.Contains(t.Id) && t.IsActive)

@@ -12,16 +12,9 @@ namespace IceBreakerApp.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public class TopicsController : ControllerBase
+public class TopicsController(ITopicService service, ILogger<TopicsController> logger) : ControllerBase
 {
-    private readonly ITopicService _service;
-    private readonly ILogger<TopicsController> _logger;
-
-    public TopicsController(ITopicService service, ILogger<TopicsController> logger)
-    {
-        _service = service;
-        _logger = logger;
-    }
+    private readonly ILogger<TopicsController> _logger = logger;
 
     /// <summary>
     /// Получить все темы с пагинацией и поиском
@@ -35,7 +28,7 @@ public class TopicsController : ControllerBase
         [FromQuery] string? search = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await _service.GetAllAsync(pageNumber, pageSize, search, cancellationToken);
+        var result = await service.GetAllAsync(pageNumber, pageSize, search, cancellationToken);
         return Ok(result);
     }
 
@@ -50,7 +43,7 @@ public class TopicsController : ControllerBase
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var topic = await _service.GetByIdAsync(id, cancellationToken);
+        var topic = await service.GetByIdAsync(id, cancellationToken);
         return Ok(topic);
     }
 
@@ -65,7 +58,7 @@ public class TopicsController : ControllerBase
         [FromBody] CreateTopicDTO dto,
         CancellationToken cancellationToken = default)
     {
-        var created = await _service.CreateAsync(dto, cancellationToken);
+        var created = await service.CreateAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
@@ -82,7 +75,7 @@ public class TopicsController : ControllerBase
         [FromBody] UpdateTopicDTO dto,
         CancellationToken cancellationToken = default)
     {
-        await _service.UpdateAsync(id, dto, cancellationToken);
+        await service.UpdateAsync(id, dto, cancellationToken);
         return NoContent();
     }
 
@@ -95,7 +88,7 @@ public class TopicsController : ControllerBase
     [SwaggerResponse(404, "Topic not found")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
-        await _service.DeleteAsync(id, cancellationToken);
+        await service.DeleteAsync(id, cancellationToken);
         return NoContent();
     }
 }

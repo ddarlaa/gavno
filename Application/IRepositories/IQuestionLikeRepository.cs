@@ -1,6 +1,6 @@
-﻿using IceBreakerApp.Domain;
+﻿using IceBreakerApp.Domain.Models;
 
-namespace IceBreakerApp.Domain.IRepositories;
+namespace IceBreakerApp.Application.IRepositories;
 
 public interface IQuestionLikeRepository
 {
@@ -12,4 +12,5 @@ public interface IQuestionLikeRepository
     Task DeleteByQuestionAndUserAsync(Guid questionId, Guid userId, CancellationToken cancellationToken);
     Task<int> GetCountByQuestionIdAsync(Guid questionId, CancellationToken cancellationToken);
     Task<int> GetCountByUserIdAsync(Guid userId, CancellationToken cancellationToken);
+    Task<QuestionLike?> GetByQuestionAndUserAsync(Guid questionId, Guid userId, CancellationToken cancellationToken);
 }

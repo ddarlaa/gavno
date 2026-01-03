@@ -1,9 +1,9 @@
 ﻿using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Create;
 using IceBreakerApp.Application.DTOs.ListItem;
-using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -12,15 +12,9 @@ namespace IceBreakerApp.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public class UsersController : ControllerBase
+[Authorize(Roles = "Admin")]
+public class UsersController(IUserService service) : ControllerBase
 {
-    private readonly IUserService _service;
-
-    public UsersController(IUserService service)
-    {
-        _service = service;
-    }
-
     /// <summary>
     /// Получить всех пользователей с пагинацией и поиском.
     /// </summary>
@@ -33,7 +27,7 @@ public class UsersController : ControllerBase
         [FromQuery] string? search = null,
         CancellationToken cancellationToken = default)
     {
-        var result = await _service.GetAllAsync(pageNumber, pageSize, search, cancellationToken);
+        var result = await service.GetAllAsync(pageNumber, pageSize, search, cancellationToken);
         return Ok(result);
     }
 
@@ -48,7 +42,7 @@ public class UsersController : ControllerBase
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var user = await _service.GetByIdAsync(id, cancellationToken);
+        var user = await service.GetByIdAsync(id, cancellationToken);
         return Ok(user);
     }
 
@@ -63,7 +57,7 @@ public class UsersController : ControllerBase
         [FromBody] CreateUserDTO dto,
         CancellationToken cancellationToken = default)
     {
-        var created = await _service.CreateAsync(dto, cancellationToken);
+        var created = await service.CreateAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
@@ -80,7 +74,7 @@ public class UsersController : ControllerBase
         [FromBody]  UpdateUserDTO dto,
         CancellationToken cancellationToken = default)
     {
-        await _service.UpdateAsync(id, dto, cancellationToken);
+        await service.UpdateAsync(id, dto, cancellationToken);
         return NoContent();
     }
 
@@ -93,7 +87,7 @@ public class UsersController : ControllerBase
     [SwaggerResponse(404, "User not found")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken = default)
     {
-        await _service.DeleteAsync(id, cancellationToken);
+        await service.DeleteAsync(id, cancellationToken);
         return NoContent();
     }
 }

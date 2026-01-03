@@ -1,7 +1,10 @@
-﻿using IceBreakerApp.Application.DTOs;
+﻿using IceBreakerApp.Application.Authorization;
+using IceBreakerApp.Application.Authorization.Requirements;
+using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IServices;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -11,6 +14,7 @@ namespace IceBreakerApp.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
+[Authorize(Policy = "RequireEmailConfirmed")]
 public class QuestionsController : ControllerBase
 {
     private readonly IQuestionService _questionService;
@@ -24,7 +28,11 @@ public class QuestionsController : ControllerBase
         _logger = logger;
     }
 
+    
+    
+    //[AllowAnonymous]
     [HttpGet]
+    [Authorize(Policy = "RequireUserOrAdmin")]
     [SwaggerOperation(Summary = "Get all questions", Description = "Returns paginated list of questions with filtering and sorting")]
     [SwaggerResponse(200, "Success", typeof(PaginatedResult<QuestionResponseDTO>))]
     [SwaggerResponse(400, "Bad Request")]
@@ -57,6 +65,7 @@ public class QuestionsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = "RequireUserOrAdmin")]
     [SwaggerOperation(Summary = "Create new question", Description = "Creates a new question")]
     [SwaggerResponse(201, "Created", typeof(QuestionResponseDTO))]
     [SwaggerResponse(400, "Validation error")]
@@ -70,6 +79,7 @@ public class QuestionsController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Policy = "CanEditQuestion")]
     [SwaggerOperation(Summary = "Full question update", Description = "Performs full update of a question")]
     [SwaggerResponse(204, "No Content")]
     [SwaggerResponse(404, "Question not found")]
@@ -103,6 +113,7 @@ public class QuestionsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Policy = "CanDeleteQuestion")]
     [SwaggerOperation(Summary = "Delete question", Description = "Soft deletes a question")]
     [SwaggerResponse(204, "No Content")]
     [SwaggerResponse(404, "Question not found")]
