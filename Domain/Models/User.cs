@@ -14,11 +14,7 @@ public class User : BaseEntity
 
     [Required]
     public string PasswordHash { get; set; } = null!;
-
-    [Required]
-    [MaxLength(128)]
-    public string PasswordSalt { get; set; } = null!;
-
+    
     [MaxLength(100)]
     public string? DisplayName { get; set; }
 

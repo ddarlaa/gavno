@@ -62,16 +62,16 @@ public class InitialCreate : Migration
 
         // UserRoles
         Create.Table("UserRoles")
-            .WithColumn("Id").AsGuid().PrimaryKey()
             .WithColumn("UserId").AsGuid().NotNullable()
             .WithColumn("RoleId").AsGuid().NotNullable()
-            .WithColumn("CreatedAt").AsDateTime().NotNullable()
-                .WithDefault(SystemMethods.CurrentUTCDateTime)
-            .WithColumn("UpdatedAt").AsDateTime().NotNullable()
-                .WithDefault(SystemMethods.CurrentUTCDateTime)
             .WithColumn("AssignedAt").AsDateTime().NotNullable()
-                .WithDefault(SystemMethods.CurrentUTCDateTime)
+            .WithDefault(SystemMethods.CurrentUTCDateTime)
             .WithColumn("AssignedBy").AsGuid().Nullable();
+        
+        Create.PrimaryKey("PK_UserRoles")
+            .OnTable("UserRoles")
+            .Columns("UserId", "RoleId");
+
 
         // UserClaims
         Create.Table("UserClaims")

@@ -205,20 +205,18 @@ public class SeedInitialData : Migration
             });
 
         // ====================================================================
-        // НАЗНАЧЕНИЕ РОЛЕЙ ПОЛЬЗОВАТЕЛЯМ (ИСПРАВЛЕНО: без Id для UserRoles)
+        // НАЗНАЧЕНИЕ РОЛЕЙ ПОЛЬЗОВАТЕЛЯМ 
         // ====================================================================
         
         Insert.IntoTable("UserRoles")
             .Row(new
             {
-                Id = Guid.NewGuid(),
                 UserId = Guid.Parse("44444444-4444-4444-4444-444444444444"),
                 RoleId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
                 AssignedAt = now
             })
             .Row(new
             {
-                Id = Guid.NewGuid(),
                 UserId = Guid.Parse("55555555-5555-5555-5555-555555555555"),
                 RoleId = Guid.Parse("33333333-3333-3333-3333-333333333333"),
                 AssignedAt = now

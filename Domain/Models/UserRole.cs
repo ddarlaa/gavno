@@ -5,6 +5,7 @@ namespace IceBreakerApp.Domain.Models;
 
 public class UserRole
 {
+    
     [Key, Column(Order = 0)]
     public Guid UserId { get; set; }
 
