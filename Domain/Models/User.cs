@@ -1,4 +1,3 @@
-// Domain/Models/User.cs (добавь если нет)
 using System.ComponentModel.DataAnnotations;
 
 namespace IceBreakerApp.Domain.Models;
@@ -15,6 +14,10 @@ public class User : BaseEntity
 
     [Required]
     public string PasswordHash { get; set; } = null!;
+
+    [Required]
+    [MaxLength(128)]
+    public string PasswordSalt { get; set; } = null!;
 
     [MaxLength(100)]
     public string? DisplayName { get; set; }
@@ -33,10 +36,12 @@ public class User : BaseEntity
 
     public DateTime? DateOfBirth { get; set; }
     public DateTime? LastLoginAt { get; set; }
-    
+
     public bool IsEmailConfirmed { get; set; } = false;
     public bool IsActive { get; set; } = true;
     public bool IsDeleted { get; set; } = false;
+
+    public Guid? AvatarFileId { get; set; } // Добавлено: FK к FileMetadata для аватара
 
     // Навигационные свойства
     public virtual ICollection<Question> Questions { get; set; } = new List<Question>();
@@ -45,4 +50,8 @@ public class User : BaseEntity
     public virtual ICollection<UserSession> Sessions { get; set; } = new List<UserSession>();
     public virtual ICollection<UserClaim> UserClaims { get; set; } = new List<UserClaim>();
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+
+    public virtual ICollection<FileMetadata> UploadedFiles { get; set; } = new List<FileMetadata>();
+    public virtual ICollection<UploadSession> ChunkUploadSessions { get; set; } = new List<UploadSession>();
+    public virtual FileMetadata? AvatarFile { get; set; } // Добавлено: навигационное свойство для аватара
 }

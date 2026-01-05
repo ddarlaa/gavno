@@ -1,4 +1,5 @@
-﻿using IceBreakerApp.Application.Authorization;
+﻿using System.Security.Claims;
+using IceBreakerApp.Application.Authorization;
 using IceBreakerApp.Application.Authorization.Requirements;
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Response;
@@ -74,6 +75,7 @@ public class QuestionsController : ControllerBase
         [FromBody] CreateQuestionDTO dto,
         CancellationToken cancellationToken = default)
     {
+        dto.UserId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!); // Получаем UserId из токена
         var created = await _questionService.CreateAsync(dto, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }

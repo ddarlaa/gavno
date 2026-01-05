@@ -183,7 +183,8 @@ public class SeedInitialData : Migration
                 IsActive = true,
                 IsDeleted = false,
                 CreatedAt = now,
-                UpdatedAt = now  // Теперь UpdatedAt обязателен
+                UpdatedAt = now,  // Теперь UpdatedAt обязателен
+
             })
             .Row(new
             {
@@ -199,7 +200,8 @@ public class SeedInitialData : Migration
                 IsActive = true,
                 IsDeleted = false,
                 CreatedAt = now.AddDays(-1),
-                UpdatedAt = now.AddDays(-1)  // Обновляем UpdatedAt для согласованности
+                UpdatedAt = now.AddDays(-1),  // Обновляем UpdatedAt для согласованности
+
             });
 
         // ====================================================================
@@ -237,7 +239,7 @@ public class SeedInitialData : Migration
                 Name = "Общие вопросы",
                 Description = "Общие вопросы по использованию платформы",
                 CreatedAt = now,
-                IsActive = true
+                IsActive = true,
             })
             .Row(new
             {
@@ -253,7 +255,7 @@ public class SeedInitialData : Migration
                 Name = "Предложения",
                 Description = "Предложения по улучшению платформы",
                 CreatedAt = now,
-                IsActive = true
+                IsActive = true,
             });
 
         // ====================================================================
@@ -273,7 +275,7 @@ public class SeedInitialData : Migration
                 AnswerCount = 1,
                 CreatedAt = now,
                 UpdatedAt = now,
-                IsActive = true
+                IsActive = true,
             })
             .Row(new
             {
@@ -287,7 +289,7 @@ public class SeedInitialData : Migration
                 AnswerCount = 0,
                 CreatedAt = now.AddHours(-2),
                 UpdatedAt = now.AddHours(-2),
-                IsActive = true
+                IsActive = true,
             });
 
         // ====================================================================

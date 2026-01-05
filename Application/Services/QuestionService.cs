@@ -22,6 +22,7 @@ namespace IceBreakerApp.Application.Services
         private readonly IQuestionAnswerService _questionAnswerService;
         private readonly IMapper _mapper;
         private readonly ILogger<QuestionService> _logger;
+        private readonly IFileService _fileService; // Добавлено
 
         public QuestionService(
             IQuestionRepository questionRepository,
@@ -30,7 +31,8 @@ namespace IceBreakerApp.Application.Services
             IQuestionLikeService questionLikeService,
             IQuestionAnswerService questionAnswerService,
             IMapper mapper,
-            ILogger<QuestionService> logger)
+            ILogger<QuestionService> logger,
+            IFileService fileService) // Добавлено
         {
             _questionRepository = questionRepository;
             _userRepository = userRepository;
@@ -39,6 +41,7 @@ namespace IceBreakerApp.Application.Services
             _questionAnswerService = questionAnswerService;
             _mapper = mapper;
             _logger = logger;
+            _fileService = fileService; // Добавлено
         }
 
         public async Task<QuestionResponseDTO?> GetByIdAsync(Guid id, CancellationToken ct = default)
@@ -106,6 +109,7 @@ namespace IceBreakerApp.Application.Services
                     response.LikeCount = likeCount;
                     response.AnswerCount = answerCount;
 
+                    
                     responseList.Add(response);
                 }
 
@@ -177,6 +181,7 @@ namespace IceBreakerApp.Application.Services
                     var topic = await _topicRepository.GetByIdAsync(dto.TopicId.Value, ct);
                     if (topic == null)
                         throw new NotFoundException($"Topic with ID {dto.TopicId.Value} not found");
+                    question.TopicId = dto.TopicId.Value;
                 }
 
                 // Обновляем поля
@@ -302,5 +307,7 @@ namespace IceBreakerApp.Application.Services
                 throw;
             }
         }
+
+        
     }
 }

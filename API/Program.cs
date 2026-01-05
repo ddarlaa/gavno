@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 
@@ -212,6 +213,9 @@ builder.Services.AddScoped<ITopicRepository, TopicRepository>();
 // Сервисы
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ITopicService, TopicService>();
+builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddScoped<IFileMetadataRepository, FileMetadataRepository>();
+builder.Services.AddScoped<IFileStorageSettings, StorageSettings>();
 
 // Сервисы вопросов и ответов
 builder.Services.AddScoped<IQuestionService, QuestionService>();

@@ -8,6 +8,9 @@ obj/
 # Code review
 CODE_REVIEW_REPORT.md
 
+#whatever the fuck this is
+test_jwt_compile.cs
+
 # Локальные настройки
 appsettings.Development.json
 appsettings.local.json

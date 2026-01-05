@@ -19,6 +19,11 @@ namespace Infrastructure
         public DbSet<UserRole> UserRoles { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
         public DbSet<UserClaim> UserClaims { get; set; }
+        public DbSet<FileMetadata> Files { get; set; } // Добавлено
+        public DbSet<UploadSession> ChunkUploadSessions { get; set; } // Добавлено
+        public DbSet<QuestionAttachment> QuestionAttachments { get; set; } // Добавлено
+        public DbSet<TopicAttachment> TopicAttachments { get; set; } // Добавлено
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -148,6 +153,8 @@ namespace Infrastructure
                 entity.Property(t => t.IsActive).HasDefaultValue(true);
                 entity.HasIndex(t => t.Name).IsUnique();
                 entity.HasIndex(t => t.IsActive);
+
+                
             });
 
             // User
@@ -157,7 +164,7 @@ namespace Infrastructure
                 entity.Property(u => u.Username).IsRequired().HasMaxLength(100);
                 entity.Property(u => u.Email).IsRequired().HasMaxLength(255);
                 entity.Property(u => u.PasswordHash).IsRequired();
-                
+
                 entity.Property(u => u.DisplayName).HasMaxLength(100);
                 entity.Property(u => u.Bio).HasMaxLength(1000);
                 entity.Property(u => u.FirstName).HasMaxLength(100);
@@ -172,6 +179,24 @@ namespace Infrastructure
                 entity.HasIndex(u => u.Email).IsUnique();
                 entity.HasIndex(u => u.IsActive);
                 entity.HasIndex(u => u.IsDeleted);
+
+
+                entity.HasMany(u => u.UploadedFiles)
+                    .WithOne(f => f.UploadedBy)
+                    .HasForeignKey(f => f.UploadedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasMany(u => u.ChunkUploadSessions)
+                    .WithOne(s => s.User)
+                    .HasForeignKey(s => s.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                
+                // Связь User с FileMetadata для аватара
+                entity.HasOne(u => u.AvatarFile)
+                    .WithOne()
+                    .HasForeignKey<User>(u => u.AvatarFileId)
+                    .OnDelete(DeleteBehavior
+                        .SetNull); // При удалении файла аватара, AvatarFileId в User становится null
             });
 
             // UserSession
@@ -274,6 +299,163 @@ namespace Infrastructure
                 entity.HasIndex(uc => uc.UserId);
                 entity.HasIndex(uc => uc.ClaimType);
                 entity.HasIndex(uc => new { uc.ClaimType, uc.ClaimValue });
+            });
+
+            // FileMetadata 
+            modelBuilder.Entity<FileMetadata>(entity =>
+            {
+                entity.HasKey(f => f.Id);
+
+                entity.Property(f => f.FileName)
+                    .IsRequired()
+                    .HasMaxLength(255);
+
+                entity.Property(f => f.OriginalFileName)
+                    .IsRequired()
+                    .HasMaxLength(500);
+
+                entity.Property(f => f.ContentType)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(f => f.Path)
+                    .IsRequired()
+                    .HasMaxLength(500);
+
+                entity.Property(f => f.Hash)
+                    .IsRequired()
+                    .HasMaxLength(64); // SHA256 hex string
+
+                entity.Property(f => f.SmallThumbnailPath)
+                    .HasMaxLength(500);
+
+                entity.Property(f => f.MediumThumbnailPath)
+                    .HasMaxLength(500);
+
+                entity.Property(f => f.CameraModel)
+                    .HasMaxLength(100);
+
+                // Soft delete поддержка
+                entity.HasQueryFilter(f => !f.IsDeleted);
+
+                // Связь с User
+                entity.HasOne(f => f.UploadedBy)
+                    .WithMany(u => u.UploadedFiles)
+                    .HasForeignKey(f => f.UploadedById)
+                    .OnDelete(DeleteBehavior.Restrict); // Не удалять файлы при удалении пользователя
+
+                // Индексы для производительности
+                entity.HasIndex(f => f.UploadedById);
+                entity.HasIndex(f => f.Hash);
+                entity.HasIndex(f => f.UploadedAt);
+                entity.HasIndex(f => f.IsPublic);
+                entity.HasIndex(f => f.ExpiresAt);
+                entity.HasIndex(f => f.IsDeleted);
+                entity.HasIndex(f => f.ContentType);
+
+                // Составные индексы для частых запросов
+                entity.HasIndex(f => new { f.IsDeleted, f.IsPublic, f.ExpiresAt });
+                entity.HasIndex(f => new { f.UploadedById, f.UploadedAt });
+                entity.HasIndex(f => new { f.ContentType, f.Size });
+
+                // Значения по умолчанию
+                entity.Property(f => f.DownloadCount)
+                    .HasDefaultValue(0);
+
+                entity.Property(f => f.IsDeleted)
+                    .HasDefaultValue(false);
+
+                entity.Property(f => f.IsPublic)
+                    .HasDefaultValue(false);
+
+                entity.Property(f => f.UploadedAt)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+            });
+
+            // ========== КОНФИГУРАЦИЯ UploadSession ==========
+            modelBuilder.Entity<UploadSession>(entity =>
+            {
+                entity.HasKey(s => s.UploadId);
+
+                entity.Property(s => s.UploadId)
+                    .HasMaxLength(36); // Guid as string
+
+                entity.Property(s => s.FileName)
+                    .IsRequired()
+                    .HasMaxLength(500);
+
+                entity.Property(s => s.ContentType)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                // Значения по умолчанию
+                entity.Property(s => s.CreatedAt)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(s => s.LastActivity)
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(s => s.UploadedChunks)
+                    .HasDefaultValue(0);
+
+                // Связь с User
+                entity.HasOne(s => s.User)
+                    .WithMany(u => u.ChunkUploadSessions)
+                    .HasForeignKey(s => s.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // Связь с FileMetadata (опционально)
+                entity.HasOne(s => s.File)
+                    .WithOne()
+                    .HasForeignKey<UploadSession>(s => s.FileId)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                // Индексы
+                entity.HasIndex(s => s.UserId);
+                entity.HasIndex(s => s.CreatedAt);
+                entity.HasIndex(s => s.LastActivity);
+                entity.HasIndex(s => s.FileId);
+
+                // Составные индексы
+                entity.HasIndex(s => new { s.UserId, s.CreatedAt });
+                entity.HasIndex(s => new { s.LastActivity, s.FileId });
+
+                // TTL индекс для автоматической очистки старых сессий
+                // (можно использовать для фоновой очистки)
+                entity.HasIndex(s => s.LastActivity);
+            });
+
+            // QuestionAttachment
+            modelBuilder.Entity<QuestionAttachment>(entity =>
+            {
+                entity.HasKey(qa => new { qa.QuestionId, qa.FileId });
+
+                entity.HasOne(qa => qa.Question)
+                    .WithMany()
+                    .HasForeignKey(qa => qa.QuestionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(qa => qa.File)
+                    .WithMany()
+                    .HasForeignKey(qa => qa.FileId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // TopicAttachment
+            modelBuilder.Entity<TopicAttachment>(entity =>
+            {
+                entity.HasKey(ta => new { ta.TopicId, ta.FileId });
+
+                entity.HasOne(ta => ta.Topic)
+                    .WithMany()
+                    .HasForeignKey(ta => ta.TopicId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ta => ta.File)
+                    .WithMany()
+                    .HasForeignKey(ta => ta.FileId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Seed данных для ролей и разрешений

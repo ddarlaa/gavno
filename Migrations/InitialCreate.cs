@@ -28,7 +28,8 @@ public class InitialCreate : Migration
             .WithColumn("CreatedAt").AsDateTime().NotNullable()
                 .WithDefault(SystemMethods.CurrentUTCDateTime)
             .WithColumn("UpdatedAt").AsDateTime().NotNullable()
-                .WithDefault(SystemMethods.CurrentUTCDateTime);
+                .WithDefault(SystemMethods.CurrentUTCDateTime)
+            .WithColumn("AvatarFileId").AsGuid().Nullable(); // Добавлено: FK к FileMetadata для аватара
 
         // Roles
         Create.Table("Roles")
@@ -94,6 +95,45 @@ public class InitialCreate : Migration
             .WithColumn("IpAddress").AsString(45).Nullable()
             .WithColumn("IsRevoked").AsBoolean().NotNullable().WithDefaultValue(false);
 
+        // FileMetadata
+        Create.Table("FileMetadata")
+            .WithColumn("Id").AsGuid().PrimaryKey().WithDefault(SystemMethods.NewGuid)
+            .WithColumn("FileName").AsString(255).NotNullable()
+            .WithColumn("OriginalFileName").AsString(255).NotNullable()
+            .WithColumn("ContentType").AsString(100).NotNullable()
+            .WithColumn("Size").AsInt64().NotNullable()
+            .WithColumn("UploadedById").AsGuid().NotNullable()
+            .WithColumn("UploadedAt").AsDateTime().NotNullable().WithDefault(SystemMethods.CurrentUTCDateTime)
+            .WithColumn("Path").AsString(255).NotNullable()
+            .WithColumn("Hash").AsString(64).NotNullable()  // SHA256 = 64 hex chars
+            .WithColumn("IsPublic").AsBoolean().NotNullable()
+            .WithColumn("ExpiresAt").AsDateTime().Nullable()
+            .WithColumn("DownloadCount").AsInt32().NotNullable().WithDefaultValue(0)
+            .WithColumn("Width").AsInt32().Nullable()
+            .WithColumn("Height").AsInt32().Nullable()
+            .WithColumn("CameraModel").AsString(100).Nullable()
+            .WithColumn("DateTaken").AsDateTime().Nullable()
+            .WithColumn("Latitude").AsDouble().Nullable()
+            .WithColumn("Longitude").AsDouble().Nullable()
+            .WithColumn("Orientation").AsInt32().Nullable()
+            .WithColumn("SmallThumbnailPath").AsString(255).Nullable()
+            .WithColumn("MediumThumbnailPath").AsString(255).Nullable();
+
+        // UploadSessions
+        Create.Table("UploadSessions")
+            .WithColumn("Id").AsGuid().PrimaryKey().WithDefault(SystemMethods.NewGuid)
+            .WithColumn("UserId").AsGuid().NotNullable()
+            .WithColumn("FileName").AsString(255).NotNullable()
+            .WithColumn("ContentType").AsString(100).NotNullable()
+            .WithColumn("TotalFileSize").AsInt64().NotNullable()
+            .WithColumn("UploadedBytes").AsInt64().NotNullable().WithDefaultValue(0)
+            .WithColumn("ChunkSize").AsInt32().NotNullable()
+            .WithColumn("TotalChunks").AsInt32().NotNullable()
+            .WithColumn("UploadedChunks").AsInt32().NotNullable().WithDefaultValue(0)
+            .WithColumn("TempFilePath").AsString(500).NotNullable()
+            .WithColumn("CreatedAt").AsDateTime().NotNullable().WithDefault(SystemMethods.CurrentUTCDateTime)
+            .WithColumn("ExpiresAt").AsDateTime().NotNullable();
+
         // Topics
         Create.Table("Topics")
             .WithColumn("Id").AsGuid().PrimaryKey()
@@ -103,7 +143,8 @@ public class InitialCreate : Migration
                 .WithDefault(SystemMethods.CurrentUTCDateTime)
             .WithColumn("UpdatedAt").AsDateTime().Nullable()
             .WithColumn("IsActive").AsBoolean().NotNullable()
-                .WithDefaultValue(true);
+                .WithDefaultValue(true)
+            .WithColumn("ImageId").AsGuid().Nullable(); // Добавлено: FK к FileMetadata для изображения темы
 
         // Questions
         Create.Table("Questions")
@@ -119,7 +160,8 @@ public class InitialCreate : Migration
                 .WithDefault(SystemMethods.CurrentUTCDateTime)
             .WithColumn("UpdatedAt").AsDateTime().Nullable()
             .WithColumn("IsActive").AsBoolean().NotNullable()
-                .WithDefaultValue(true);
+                .WithDefaultValue(true)
+            .WithColumn("ImageId").AsGuid().Nullable(); // Добавлено: FK к FileMetadata для изображения вопроса
 
         // QuestionAnswers
         Create.Table("QuestionAnswers")
@@ -145,10 +187,6 @@ public class InitialCreate : Migration
             .WithColumn("UpdatedAt").AsDateTime().Nullable()
             .WithColumn("IsActive").AsBoolean().NotNullable()
                 .WithDefaultValue(true);
-
-        // Внешние ключи не поддерживаются FluentMigrator в SQLite
-        // Они будут управляться на уровне приложения через EF Core
-        // Execute.Sql("PRAGMA foreign_keys = ON;");
 
         // Создание уникальных ограничений
         Create.UniqueConstraint("UQ_Users_Username")
@@ -183,6 +221,10 @@ public class InitialCreate : Migration
         Create.Index("IX_QuestionAnswers_UserId").OnTable("QuestionAnswers").OnColumn("UserId");
         Create.Index("IX_QuestionLikes_QuestionId").OnTable("QuestionLikes").OnColumn("QuestionId");
         Create.Index("IX_QuestionLikes_UserId").OnTable("QuestionLikes").OnColumn("UserId");
+        Create.Index("IX_FileMetadata_Hash").OnTable("FileMetadata").OnColumn("Hash");
+        Create.Index("IX_FileMetadata_UploadedById").OnTable("FileMetadata").OnColumn("UploadedById");
+        Create.Index("IX_FileMetadata_ContentType").OnTable("FileMetadata").OnColumn("ContentType");
+        Create.Index("IX_UploadSessions_UserId").OnTable("UploadSessions").OnColumn("UserId");
 
         // Создание внешних ключей (PostgreSQL поддерживает все типы FK) - ПОСЛЕ создания таблиц!
         Create.ForeignKey("FK_UserRoles_RoleId")
@@ -249,11 +291,34 @@ public class InitialCreate : Migration
             .FromTable("QuestionLikes").ForeignColumn("UserId")
             .ToTable("Users").PrimaryColumn("Id")
             .OnDelete(Rule.Cascade);
+
+        // Новые внешние ключи для FileMetadata
+        Create.ForeignKey("FK_Users_FileMetadata_AvatarFileId")
+            .FromTable("Users").ForeignColumn("AvatarFileId")
+            .ToTable("FileMetadata").PrimaryColumn("Id")
+            .OnDelete(Rule.SetNull);
+
+        Create.ForeignKey("FK_Questions_FileMetadata_ImageId")
+            .FromTable("Questions").ForeignColumn("ImageId")
+            .ToTable("FileMetadata").PrimaryColumn("Id")
+            .OnDelete(Rule.SetDefault);
+
+        Create.ForeignKey("FK_Topics_FileMetadata_ImageId")
+            .FromTable("Topics").ForeignColumn("ImageId")
+            .ToTable("FileMetadata").PrimaryColumn("Id")
+            .OnDelete(Rule.SetDefault);
+
+        Create.ForeignKey("FK_UploadSessions_UserId")
+            .FromTable("UploadSessions").ForeignColumn("UserId")
+            .ToTable("Users").PrimaryColumn("Id")
+            .OnDelete(Rule.Cascade);
     }
 
     // Откат: удаляет все таблицы в порядке, обратном созданию (сначала зависящие, потом базовые).
     public override void Down()
     {
+        Delete.Table("UploadSessions");
+        Delete.Table("FileMetadata");
         Delete.Table("QuestionLikes");
         Delete.Table("QuestionAnswers");
         Delete.Table("Questions");

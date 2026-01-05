@@ -6,6 +6,7 @@ using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
 using Microsoft.Extensions.Logging;
+using IceBreakerApp.Application.DTOs.ListItem;
 
 namespace IceBreakerApp.Application.Services;
 
@@ -14,15 +15,18 @@ public class TopicService : ITopicService
     private readonly ITopicRepository _topicRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<TopicService> _logger;
+    private readonly IFileService _fileService; // Добавлено
 
     public TopicService(
         ITopicRepository topicRepository, 
         IMapper mapper,
-        ILogger<TopicService> logger)
+        ILogger<TopicService> logger,
+        IFileService fileService) // Добавлено
     {
         _topicRepository = topicRepository;
         _mapper = mapper;
         _logger = logger;
+        _fileService = fileService; // Добавлено
     }
 
     public async Task<TopicResponseDTO?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -44,7 +48,14 @@ public class TopicService : ITopicService
             throw new ArgumentException("Page size must be between 1 and 100", nameof(pageSize));
 
         var result = await _topicRepository.GetPaginatedAsync(pageNumber, pageSize, search, cancellationToken);
-        var dtos = _mapper.Map<List<TopicResponseDTO>>(result.Items);
+        var dtos = new List<TopicResponseDTO>();
+        
+        foreach (var topic in result.Items)
+        {
+            var dto = _mapper.Map<TopicResponseDTO>(topic);
+            
+            dtos.Add(dto);
+        }
         
         return new PaginatedResult<TopicResponseDTO>(dtos, result.TotalCount, pageNumber, pageSize);
     }
@@ -64,6 +75,8 @@ public class TopicService : ITopicService
             topic.UpdatedAt = DateTime.UtcNow;
             topic.IsActive = true;
             topic.Name = topic.Name.Trim();
+
+            
 
             var created = await _topicRepository.AddAsync(topic, cancellationToken);
             
@@ -97,6 +110,7 @@ public class TopicService : ITopicService
         if (dto.Description != null) 
             topic.Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
 
+        
 
         await _topicRepository.UpdateAsync(topic, cancellationToken);
     }
@@ -115,4 +129,6 @@ public class TopicService : ITopicService
         var topic = await _topicRepository.FindByNameAsync(name, cancellationToken);
         return topic != null;
     }
+
+    
 }

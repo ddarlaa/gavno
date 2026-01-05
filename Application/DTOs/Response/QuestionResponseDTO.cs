@@ -16,4 +16,11 @@ public class QuestionResponseDTO
     public int AnswerCount { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    // Информация об изображении
+    public Guid? ImageId { get; set; }
+    public string? ImageThumbnailUrl { get; set; }
+    public string? ImageFileUrl { get; set; }
+    public long? ImageFileSize { get; set; }
+    public string? ImageFileType { get; set; }
 }
