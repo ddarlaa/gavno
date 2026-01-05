@@ -19,7 +19,7 @@ namespace Infrastructure
         public DbSet<UserRole> UserRoles { get; set; }
         public DbSet<RolePermission> RolePermissions { get; set; }
         public DbSet<UserClaim> UserClaims { get; set; }
-        public DbSet<FileMetadata> Files { get; set; } // Добавлено
+        public DbSet<FileMetadata> FileMetadata { get; set; } // Добавлено
         public DbSet<UploadSession> ChunkUploadSessions { get; set; } // Добавлено
         public DbSet<QuestionAttachment> QuestionAttachments { get; set; } // Добавлено
         public DbSet<TopicAttachment> TopicAttachments { get; set; } // Добавлено

@@ -176,7 +176,8 @@ namespace IceBreakerApp.Application.Services
 
         public async Task<string> GenerateRefreshTokenAsync(CancellationToken cancellationToken = default)
         {
-            var randomNumber = new byte[32];
+            // УВЕЛИЧИВАЕМ до 64 байт (512 бит) для безопасности
+            var randomNumber = new byte[64];
             using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(randomNumber);
@@ -184,6 +185,17 @@ namespace IceBreakerApp.Application.Services
             return await Task.FromResult(Convert.ToBase64String(randomNumber));
         }
 
+        // Добавляем метод для вычисления хэша refresh token (HMAC-SHA256)
+        private string ComputeRefreshTokenHash(string refreshToken)
+        {
+            // Используем секретный ключ JWT для HMAC
+            using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
+            var hashBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(refreshToken));
+            return Convert.ToBase64String(hashBytes);
+        }
+
+
+        // Исправляем метод отзыва refresh token
         public async Task<bool> RevokeRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(refreshToken))
@@ -191,12 +203,12 @@ namespace IceBreakerApp.Application.Services
 
             try
             {
-                var userIdString = await GetUserIdFromRefreshTokenAsync(refreshToken, cancellationToken);
-                if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
-                    return false;
-
-                await _userRepository.RevokeRefreshTokenAsync(userId, refreshToken, cancellationToken);
-                return true;
+                // Вычисляем хэш для поиска
+                var refreshTokenHash = ComputeRefreshTokenHash(refreshToken);
+            
+                // Находим и отзываем сессию по хэшу
+                var result = await _userRepository.RevokeSessionByHashAsync(refreshTokenHash, cancellationToken);
+                return result;
             }
             catch (Exception ex)
             {
@@ -205,18 +217,17 @@ namespace IceBreakerApp.Application.Services
             }
         }
 
+        // Исправляем метод валидации refresh token
         public async Task<bool> ValidateRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(refreshToken))
-                return false;
-
-            try
+                return false;try
             {
-                var userIdString = await GetUserIdFromRefreshTokenAsync(refreshToken, cancellationToken);
-                if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
-                    return false;
-
-                var session = await _userRepository.GetActiveSessionAsync(userId, refreshToken, cancellationToken);
+                // Вычисляем хэш для сравнения (HMAC вместо BCrypt)
+                var refreshTokenHash = ComputeRefreshTokenHash(refreshToken);
+            
+                // Находим сессию по хэшу
+                var session = await _userRepository.GetActiveSessionByHashAsync(refreshTokenHash, cancellationToken);
                 return session != null && session.ExpiresAt > DateTime.UtcNow && !session.IsRevoked;
             }
             catch (Exception ex)
@@ -226,6 +237,8 @@ namespace IceBreakerApp.Application.Services
             }
         }
 
+
+        // Исправляем метод получения UserId из refresh token
         public async Task<string?> GetUserIdFromRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(refreshToken))
@@ -233,12 +246,12 @@ namespace IceBreakerApp.Application.Services
 
             try
             {
-                // Получаем все активные сессии
-                var sessions = await _userRepository.GetActiveSessionsByRefreshTokenAsync(refreshToken, cancellationToken);
-                
-                // Находим первую подходящую сессию
-                var session = sessions.FirstOrDefault();
-                
+                // Вычисляем хэш для поиска
+                var refreshTokenHash = ComputeRefreshTokenHash(refreshToken);
+            
+                // Находим сессию по хэшу
+                var session = await _userRepository.GetActiveSessionByHashAsync(refreshTokenHash, cancellationToken);
+            
                 return session?.UserId.ToString();
             }
             catch (Exception ex)

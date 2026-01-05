@@ -209,13 +209,15 @@ builder.Services.AddScoped<IQuestionRepository, QuestionRepository>();
 builder.Services.AddScoped<IQuestionAnswerRepository, QuestionAnswerRepository>();
 builder.Services.AddScoped<IQuestionLikeRepository, QuestionLikeRepository>();
 builder.Services.AddScoped<ITopicRepository, TopicRepository>();
+builder.Services.AddScoped<IUploadSessionRepository, UploadSessionRepository>();
+builder.Services.AddScoped<IFileMetadataRepository, FileMetadataRepository>();
 
 // Сервисы
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ITopicService, TopicService>();
 builder.Services.AddScoped<IFileService, FileService>();
-builder.Services.AddScoped<IFileMetadataRepository, FileMetadataRepository>();
 builder.Services.AddScoped<IFileStorageSettings, StorageSettings>();
+builder.Services.AddScoped<IChunkedFileService, ChunkedFileService>();
 
 // Сервисы вопросов и ответов
 builder.Services.AddScoped<IQuestionService, QuestionService>();
@@ -228,7 +230,6 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IEmailService, MockEmailService>();
 
 // Authorization Services
-builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAuthorizationHandler, ResourceOwnerRequirementHandler>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 

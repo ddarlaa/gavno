@@ -429,8 +429,8 @@ public class FileService : IFileService
     {
         try
         {
-            await using var imageStream = File.OpenRead(filePath);
-            using var image = await Image.LoadAsync(imageStream);
+            // Загружаем изображение из файла
+            using var image = await Image.LoadAsync(filePath);
 
             metadata.Width = image.Width;
             metadata.Height = image.Height;
@@ -458,7 +458,6 @@ public class FileService : IFileService
                 }
             }
 
-
             image.Mutate(x => x.AutoOrient());
 
             // Создаем новый MemoryStream для сохранения
@@ -476,10 +475,9 @@ public class FileService : IFileService
                 await image.SaveAsJpegAsync(outputStream, new JpegEncoder { Quality = 90 });
             }
 
-            // Перезаписываем файл
+            // Перезаписываем файл из MemoryStream
             outputStream.Position = 0;
-            await using var fileStream = new FileStream(filePath, FileMode.Create);
-            await outputStream.CopyToAsync(fileStream);
+            await File.WriteAllBytesAsync(filePath, outputStream.ToArray());
 
             // Генерация thumbnails
             var (smallPath, mediumThumbPath) = await GenerateThumbnailsInternalAsync(

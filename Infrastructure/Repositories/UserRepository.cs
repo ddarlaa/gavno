@@ -215,64 +215,7 @@ namespace Infrastructure.Repositories
             await _context.UserSessions.AddAsync(session, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
         }
-
-        public async Task<UserSession?> GetActiveSessionAsync(Guid userId, string refreshToken, CancellationToken cancellationToken = default)
-        {
-            // Получаем все активные сессии пользователя и проверяем refresh token
-            var sessions = await _context.UserSessions
-                .AsNoTracking()
-                .Where(s => 
-                    s.UserId == userId && 
-                    !s.IsRevoked && 
-                    s.ExpiresAt > DateTime.UtcNow)
-                .ToListAsync(cancellationToken);
-
-            // Проверяем каждый refresh token через BCrypt
-            foreach (var session in sessions)
-            {
-                if (BCrypt.Net.BCrypt.Verify(refreshToken, session.RefreshTokenHash))
-                {
-                    return session;
-                }
-            }
-
-            return null;
-        }
-
-        public async Task<IReadOnlyList<UserSession>> GetActiveSessionsByRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
-        {
-            // Получаем все активные сессии и проверяем refresh token
-            var sessions = await _context.UserSessions
-                .AsNoTracking()
-                .Where(s => 
-                    !s.IsRevoked && 
-                    s.ExpiresAt > DateTime.UtcNow)
-                .ToListAsync(cancellationToken);
-
-            // Проверяем каждый refresh token через BCrypt
-            var matchingSessions = new List<UserSession>();
-            foreach (var session in sessions)
-            {
-                if (BCrypt.Net.BCrypt.Verify(refreshToken, session.RefreshTokenHash))
-                {
-                    matchingSessions.Add(session);
-                }
-            }
-
-            return matchingSessions;
-        }
-
-        public async Task RevokeRefreshTokenAsync(Guid userId, string refreshToken, CancellationToken cancellationToken = default)
-        {
-            var sessions = await GetActiveSessionsByRefreshTokenAsync(refreshToken, cancellationToken);
-            
-            foreach (var session in sessions.Where(s => s.UserId == userId))
-            {
-                session.IsRevoked = true;
-            }
-            
-            await _context.SaveChangesAsync(cancellationToken);
-        }
+        
 
         public async Task RevokeAllUserSessionsAsync(Guid userId, CancellationToken cancellationToken = default)
         {
@@ -294,6 +237,30 @@ namespace Infrastructure.Repositories
                 .AsNoTracking()
                 .Where(uc => uc.UserId == userId)
                 .ToListAsync(cancellationToken);
+        }
+
+        public async Task<UserSession?> GetActiveSessionByHashAsync(string refreshTokenHash, CancellationToken cancellationToken = default)
+        {
+            return await _context.UserSessions
+                .Include(s => s.User)
+                .FirstOrDefaultAsync(s => 
+                        s.RefreshTokenHash == refreshTokenHash &&
+                        !s.IsRevoked &&
+                        s.ExpiresAt > DateTime.UtcNow,
+                    cancellationToken);
+        }
+
+        public async Task<bool> RevokeSessionByHashAsync(string refreshTokenHash, CancellationToken cancellationToken = default)
+        {
+            var session = await GetActiveSessionByHashAsync(refreshTokenHash, cancellationToken);
+            if (session == null)
+                return false;
+
+            session.IsRevoked = true;
+            session.UpdatedAt = DateTime.UtcNow;
+    
+            await _context.SaveChangesAsync(cancellationToken);
+            return true;
         }
     }
 }

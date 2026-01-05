@@ -46,12 +46,11 @@ namespace IceBreakerApp.Application.IRepositories
         
         // Session management
         Task AddSessionAsync(UserSession session, CancellationToken cancellationToken = default);
-        Task<UserSession?> GetActiveSessionAsync(Guid userId, string refreshToken, CancellationToken cancellationToken = default);
-        Task<IReadOnlyList<UserSession>> GetActiveSessionsByRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default);
-        Task RevokeRefreshTokenAsync(Guid userId, string refreshToken, CancellationToken cancellationToken = default);
         Task RevokeAllUserSessionsAsync(Guid userId, CancellationToken cancellationToken = default);
         
         // User claims
         Task<IReadOnlyList<UserClaim>> GetUserClaimsAsync(Guid userId, CancellationToken cancellationToken = default);
+        Task<UserSession?> GetActiveSessionByHashAsync(string refreshTokenHash, CancellationToken cancellationToken = default);
+        Task<bool> RevokeSessionByHashAsync(string refreshTokenHash, CancellationToken cancellationToken = default);
     }
 }

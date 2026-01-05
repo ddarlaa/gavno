@@ -17,27 +17,27 @@ public class FileMetadataRepository : IFileMetadataRepository
 
     public async Task<FileMetadata?> GetByIdAsync(Guid id)
     {
-        return await _context.Files.FindAsync(id);
+        return await _context.FileMetadata.FindAsync(id);
     }
 
     public async Task AddAsync(FileMetadata metadata)
     {
-        await _context.Files.AddAsync(metadata);
+        await _context.FileMetadata.AddAsync(metadata);
     }
 
     public async Task UpdateAsync(FileMetadata metadata)
     {
-        _context.Files.Update(metadata);
+        _context.FileMetadata.Update(metadata);
     }
 
     public async Task DeleteAsync(FileMetadata metadata)
     {
-        _context.Files.Remove(metadata);
+        _context.FileMetadata.Remove(metadata);
     }
 
     public async Task<FileMetadata?> FindByHashAsync(string hash)
     {
-        return await _context.Files.FirstOrDefaultAsync(f => f.Hash == hash);
+        return await _context.FileMetadata.FirstOrDefaultAsync(f => f.Hash == hash);
     }
 
     public async Task<PaginatedResult<FileMetadata>> GetPaginatedFilesAsync(
@@ -47,7 +47,7 @@ public class FileMetadataRepository : IFileMetadataRepository
         int pageNumber = 1,
         int pageSize = 10)
     {
-        IQueryable<FileMetadata> query = _context.Files;
+        IQueryable<FileMetadata> query = _context.FileMetadata;
 
         if (filter != null)
         {

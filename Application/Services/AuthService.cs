@@ -1,16 +1,9 @@
-using FluentValidation;
 using FluentValidation.Results;
-using IceBreakerApp.Application.Authorization;
-using IceBreakerApp.Application.Authorization.Handlers;
-using IceBreakerApp.Application.Authorization.Requirements;
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.DTOs.Response;
-using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Application.IServices;
-using IceBreakerApp.Application.Validators;
 using IceBreakerApp.Domain;
-using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -154,33 +147,19 @@ namespace IceBreakerApp.Application.Services
                 user.LastLoginAt = DateTime.UtcNow.ToPostgreSafeUtc();
                 await _userRepository.UpdateAsync(user, cancellationToken);
 
-                // 4. Генерация JWT токенов
-                var userRoles = await _roleService.GetUserRolesAsync(user.Id, cancellationToken);
+                // 4. Генерация JWT токенов через JwtService
                 var tokensResponse = await _jwtService.GenerateTokensAsync(user.Id, cancellationToken);
                 
-                var accessToken = tokensResponse.AccessToken;
-                var refreshToken = tokensResponse.RefreshToken;
-                var refreshTokenHash = BCrypt.Net.BCrypt.HashPassword(refreshToken);
-
-                // 5. Сохранение refresh токена в сессии
-                var session = new UserSession
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = user.Id,
-                    RefreshTokenHash = refreshTokenHash,
-                    ExpiresAt = DateTime.UtcNow.AddDays(7).ToPostgreSafeUtc(), // Refresh токен действует 7 дней
-                    CreatedAt = DateTime.UtcNow.ToPostgreSafeUtc()
-                };
-
-                await _userRepository.AddSessionAsync(session, cancellationToken);
-
                 _logger.LogInformation("User logged in successfully: {EmailOrUsername}", 
                     loginDto.EmailOrUsername);
 
                 return new LoginResponseDTO
                 {
-                    AccessToken = accessToken,
-                    RefreshToken = refreshToken
+                    AccessToken = tokensResponse.AccessToken,
+                    RefreshToken = tokensResponse.RefreshToken,
+                    AccessTokenExpiresAt = tokensResponse.AccessTokenExpiresAt,
+                    RefreshTokenExpiresAt = tokensResponse.RefreshTokenExpiresAt,
+                    User = tokensResponse.User
                 };
             }
             catch (Exception ex)
@@ -194,49 +173,50 @@ namespace IceBreakerApp.Application.Services
         {
             try
             {
-                // Находим сессию по refresh токену
-                var sessions = await _userRepository.GetActiveSessionsByRefreshTokenAsync(refreshTokenDto.RefreshToken, cancellationToken);
-                var session = sessions.FirstOrDefault();
+                // 1. Валидация refresh token через JwtService
+                var isValid = await _jwtService.ValidateRefreshTokenAsync(
+                    refreshTokenDto.RefreshToken, 
+                    cancellationToken);
 
-                if (session == null)
+                if (!isValid)
                 {
-                    throw new Exception("Invalid refresh token");
+                    throw new UnauthorizedAccessException("Invalid refresh token");
                 }
 
-                // Проверяем, что токен не истек
-                if (session.ExpiresAt <= DateTime.UtcNow.ToPostgreSafeUtc())
+                // 2. Получаем UserId из refresh token через JwtService
+                var userIdString = await _jwtService.GetUserIdFromRefreshTokenAsync(
+                    refreshTokenDto.RefreshToken, 
+                    cancellationToken);
+
+                if (string.IsNullOrEmpty(userIdString) || !Guid.TryParse(userIdString, out var userId))
                 {
-                    session.IsRevoked = true;
-                    await _userRepository.SaveChangesAsync(cancellationToken);
-                    throw new Exception("Refresh token expired");
+                    throw new UnauthorizedAccessException("Invalid refresh token");
                 }
 
-                // Получаем пользователя
-                var user = await _userRepository.GetByIdAsync(session.UserId, cancellationToken);
+                // 3. Получаем пользователя
+                var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
                 if (user == null || !user.IsActive)
                 {
                     throw new Exception("User not found or inactive");
                 }
 
-                // Генерируем новые токены
-                var userRoles = await _roleService.GetUserRolesAsync(user.Id, cancellationToken);
-                var newTokensResponse = await _jwtService.GenerateTokensAsync(user.Id, cancellationToken);
-                
-                var newAccessToken = newTokensResponse.AccessToken;
-                var newRefreshToken = newTokensResponse.RefreshToken;
-                var newRefreshTokenHash = BCrypt.Net.BCrypt.HashPassword(newRefreshToken);
+                // 4. Отзываем старый refresh token через JwtService
+                await _jwtService.RevokeRefreshTokenAsync(
+                    refreshTokenDto.RefreshToken, 
+                    cancellationToken);
 
-                // Обновляем сессию
-                session.RefreshTokenHash = newRefreshTokenHash;
-                session.ExpiresAt = DateTime.UtcNow.AddDays(7).ToPostgreSafeUtc();
-                await _userRepository.SaveChangesAsync(cancellationToken);
+                // 5. Генерируем новые токены через JwtService
+                var newTokensResponse = await _jwtService.GenerateTokensAsync(userId, cancellationToken);
 
-                _logger.LogInformation("Token refreshed successfully for user: {UserId}", user.Id);
+                _logger.LogInformation("Token refreshed successfully for user: {UserId}", userId);
 
                 return new LoginResponseDTO
                 {
-                    AccessToken = newAccessToken,
-                    RefreshToken = newRefreshToken
+                    AccessToken = newTokensResponse.AccessToken,
+                    RefreshToken = newTokensResponse.RefreshToken,
+                    AccessTokenExpiresAt = newTokensResponse.AccessTokenExpiresAt,
+                    RefreshTokenExpiresAt = newTokensResponse.RefreshTokenExpiresAt,
+                    User = newTokensResponse.User
                 };
             }
             catch (Exception ex)
@@ -250,7 +230,7 @@ namespace IceBreakerApp.Application.Services
         {
             try
             {
-                await _userRepository.RevokeRefreshTokenAsync(Guid.Empty, refreshToken, cancellationToken);
+                await _jwtService.RevokeRefreshTokenAsync(refreshToken, cancellationToken);
                 _logger.LogInformation("User logged out successfully");
                 return true;
             }

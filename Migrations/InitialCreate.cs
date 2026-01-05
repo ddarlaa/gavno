@@ -90,6 +90,8 @@ public class InitialCreate : Migration
             .WithColumn("RefreshTokenHash").AsString(512).NotNullable()
             .WithColumn("CreatedAt").AsDateTime().NotNullable()
                 .WithDefault(SystemMethods.CurrentUTCDateTime)
+            .WithColumn("UpdatedAt").AsDateTime().NotNullable()
+            .WithDefault(SystemMethods.CurrentUTCDateTime)
             .WithColumn("ExpiresAt").AsDateTime().NotNullable()
             .WithColumn("DeviceInfo").AsString(500).Nullable()
             .WithColumn("IpAddress").AsString(45).Nullable()
@@ -117,7 +119,9 @@ public class InitialCreate : Migration
             .WithColumn("Longitude").AsDouble().Nullable()
             .WithColumn("Orientation").AsInt32().Nullable()
             .WithColumn("SmallThumbnailPath").AsString(255).Nullable()
-            .WithColumn("MediumThumbnailPath").AsString(255).Nullable();
+            .WithColumn("MediumThumbnailPath").AsString(255).Nullable()
+            .WithColumn("IsAvatar").AsBoolean().NotNullable().WithDefaultValue(false) // Добавлено: для определения, является ли файл аватаром
+            .WithColumn("IsDeleted").AsBoolean().NotNullable().WithDefaultValue(false); // Добавлено: для мягкого удаления
 
         // UploadSessions
         Create.Table("UploadSessions")
