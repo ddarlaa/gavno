@@ -5,8 +5,8 @@ namespace IceBreakerApp.Application.IServices;
 
 public interface IChunkedFileService
 {
-    Task<UploadProgressResponse> UploadChunkAsync(ChunkUploadRequest request, Guid userId);
-    Task<bool> IsUploadComplete(string uploadId);
-    Task<FileMetadata> FinalizeUploadAsync(string uploadId);
-    Task<UploadProgressResponse> GetProgressAsync(string uploadId);
+     public Task<UploadProgressResponse> UploadChunkAsync(ChunkUploadRequest request, Guid userId);
+    public Task<bool> IsUploadComplete(Guid uploadId);
+    public Task<FileMetadata> FinalizeUploadAsync(Guid uploadId);
+    public Task<UploadProgressResponse> GetProgressAsync(Guid uploadId);
 }

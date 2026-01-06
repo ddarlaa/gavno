@@ -392,9 +392,6 @@ namespace Infrastructure
                 entity.Property(s => s.CreatedAt)
                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-                entity.Property(s => s.LastActivity)
-                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
                 entity.Property(s => s.UploadedChunks)
                     .HasDefaultValue(0);
 
@@ -414,16 +411,10 @@ namespace Infrastructure
                 // Индексы
                 entity.HasIndex(s => s.UserId);
                 entity.HasIndex(s => s.CreatedAt);
-                entity.HasIndex(s => s.LastActivity);
                 entity.HasIndex(s => s.FileId);
 
                 // Составные индексы
                 entity.HasIndex(s => new { s.UserId, s.CreatedAt });
-                entity.HasIndex(s => new { s.LastActivity, s.FileId });
-
-                // TTL индекс для автоматической очистки старых сессий
-                // (можно использовать для фоновой очистки)
-                entity.HasIndex(s => s.LastActivity);
             });
 
             // QuestionAttachment

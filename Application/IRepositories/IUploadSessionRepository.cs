@@ -4,10 +4,11 @@ using IceBreakerApp.Domain.Models;
 
 public interface IUploadSessionRepository
 {
-    Task<UploadSession?> GetByUploadIdAsync(string uploadId);
-    Task<UploadSession?> GetByUploadIdWithFileAsync(string uploadId);
+    Task<UploadSession?> GetByUploadIdAsync(Guid uploadId);
+    Task<UploadSession?> GetByUploadIdWithFileAsync(Guid uploadId);
     Task AddAsync(UploadSession session);
     Task UpdateAsync(UploadSession session);
-    Task<bool> ExistsAsync(string uploadId);
+    Task<bool> ExistsAsync(Guid uploadId);
     Task SaveChangesAsync();
+    Task ReloadSessionAsync(UploadSession session);
 }

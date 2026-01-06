@@ -3,7 +3,7 @@ using IceBreakerApp.Domain;
 
 public class UploadProgressResponse
 {
-    public string UploadId { get; set; } = null!;
+    public Guid UploadId { get; set; }
     public int UploadedChunks { get; set; }
     public int TotalChunks { get; set; }
     public double Percentage { get; set; }

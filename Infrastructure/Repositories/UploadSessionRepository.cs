@@ -2,6 +2,8 @@ using IceBreakerApp.Domain.Models;
 using Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
+using IceBreakerApp.Application.IRepositories; // Добавлено
+
 public class UploadSessionRepository : IUploadSessionRepository
 {
     private readonly ApplicationDbContext _context;
@@ -11,13 +13,13 @@ public class UploadSessionRepository : IUploadSessionRepository
         _context = context;
     }
 
-    public async Task<UploadSession?> GetByUploadIdAsync(string uploadId)
+    public async Task<UploadSession?> GetByUploadIdAsync(Guid uploadId)
     {
         return await _context.ChunkUploadSessions
             .FirstOrDefaultAsync(s => s.UploadId == uploadId);
     }
 
-    public async Task<UploadSession?> GetByUploadIdWithFileAsync(string uploadId)
+    public async Task<UploadSession?> GetByUploadIdWithFileAsync(Guid uploadId)
     {
         return await _context.ChunkUploadSessions
             .Include(s => s.File)
@@ -35,7 +37,7 @@ public class UploadSessionRepository : IUploadSessionRepository
         await Task.CompletedTask;
     }
 
-    public async Task<bool> ExistsAsync(string uploadId)
+    public async Task<bool> ExistsAsync(Guid uploadId)
     {
         return await _context.ChunkUploadSessions
             .AnyAsync(s => s.UploadId == uploadId);
@@ -44,5 +46,10 @@ public class UploadSessionRepository : IUploadSessionRepository
     public async Task SaveChangesAsync()
     {
         await _context.SaveChangesAsync();
+    }
+
+    public async Task ReloadSessionAsync(UploadSession session)
+    {
+        await _context.Entry(session).ReloadAsync();
     }
 }

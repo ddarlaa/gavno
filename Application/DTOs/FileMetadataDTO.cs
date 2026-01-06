@@ -48,7 +48,7 @@ public class FilesQuery
 
 public class UploadProgressDto
 {
-    public string UploadId { get; set; }
+    public Guid UploadId { get; set; }
     public int UploadedChunks { get; set; }
     public int TotalChunks { get; set; }
     public double Percentage { get; set; }

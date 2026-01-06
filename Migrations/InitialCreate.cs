@@ -124,19 +124,20 @@ public class InitialCreate : Migration
             .WithColumn("IsDeleted").AsBoolean().NotNullable().WithDefaultValue(false); // Добавлено: для мягкого удаления
 
         // UploadSessions
-        Create.Table("UploadSessions")
-            .WithColumn("Id").AsGuid().PrimaryKey().WithDefault(SystemMethods.NewGuid)
+        Create.Table("ChunkUploadSessions")
+            .WithColumn("UploadId").AsGuid().PrimaryKey().WithDefault(SystemMethods.NewGuid)
             .WithColumn("UserId").AsGuid().NotNullable()
             .WithColumn("FileName").AsString(255).NotNullable()
             .WithColumn("ContentType").AsString(100).NotNullable()
-            .WithColumn("TotalFileSize").AsInt64().NotNullable()
             .WithColumn("UploadedBytes").AsInt64().NotNullable().WithDefaultValue(0)
-            .WithColumn("ChunkSize").AsInt32().NotNullable()
             .WithColumn("TotalChunks").AsInt32().NotNullable()
             .WithColumn("UploadedChunks").AsInt32().NotNullable().WithDefaultValue(0)
             .WithColumn("TempFilePath").AsString(500).NotNullable()
             .WithColumn("CreatedAt").AsDateTime().NotNullable().WithDefault(SystemMethods.CurrentUTCDateTime)
-            .WithColumn("ExpiresAt").AsDateTime().NotNullable();
+            .WithColumn("ExpiresAt").AsDateTime().NotNullable()
+            .WithColumn("FileId").AsGuid().Nullable() // Добавлено: FK к FileMetadata
+            .WithColumn("RowVersion").AsCustom("bytea").NotNullable()
+            .WithColumn("UploadedChunkIndexes").AsString().NotNullable().WithDefaultValue("");
 
         // Topics
         Create.Table("Topics")
@@ -228,7 +229,7 @@ public class InitialCreate : Migration
         Create.Index("IX_FileMetadata_Hash").OnTable("FileMetadata").OnColumn("Hash");
         Create.Index("IX_FileMetadata_UploadedById").OnTable("FileMetadata").OnColumn("UploadedById");
         Create.Index("IX_FileMetadata_ContentType").OnTable("FileMetadata").OnColumn("ContentType");
-        Create.Index("IX_UploadSessions_UserId").OnTable("UploadSessions").OnColumn("UserId");
+        Create.Index("IX_ChunkUploadSessions_UserId").OnTable("ChunkUploadSessions").OnColumn("UserId");
 
         // Создание внешних ключей (PostgreSQL поддерживает все типы FK) - ПОСЛЕ создания таблиц!
         Create.ForeignKey("FK_UserRoles_RoleId")
@@ -312,8 +313,8 @@ public class InitialCreate : Migration
             .ToTable("FileMetadata").PrimaryColumn("Id")
             .OnDelete(Rule.SetDefault);
 
-        Create.ForeignKey("FK_UploadSessions_UserId")
-            .FromTable("UploadSessions").ForeignColumn("UserId")
+        Create.ForeignKey("FK_ChunkUploadSessions_UserId")
+            .FromTable("ChunkUploadSessions").ForeignColumn("UserId")
             .ToTable("Users").PrimaryColumn("Id")
             .OnDelete(Rule.Cascade);
     }
@@ -321,7 +322,7 @@ public class InitialCreate : Migration
     // Откат: удаляет все таблицы в порядке, обратном созданию (сначала зависящие, потом базовые).
     public override void Down()
     {
-        Delete.Table("UploadSessions");
+        Delete.Table("ChunkUploadSessions");
         Delete.Table("FileMetadata");
         Delete.Table("QuestionLikes");
         Delete.Table("QuestionAnswers");

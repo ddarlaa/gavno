@@ -348,7 +348,6 @@ public class FilesController : ControllerBase
         }
     }
 
-
     [HttpPost("upload/chunked")]
     public async Task<IActionResult> UploadChunk([FromForm] ChunkUploadRequest request)
     {
@@ -358,7 +357,7 @@ public class FilesController : ControllerBase
     }
 
     [HttpGet("upload/{uploadId}/progress")]
-    public async Task<IActionResult> GetUploadProgress(string uploadId)
+    public async Task<IActionResult> GetUploadProgress(Guid uploadId)
     {
         try
         {
