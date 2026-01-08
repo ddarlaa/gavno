@@ -40,7 +40,7 @@ public class FileMetadataRepository : IFileMetadataRepository
         return await _context.FileMetadata.FirstOrDefaultAsync(f => f.Hash == hash);
     }
 
-    public async Task<PaginatedResult<FileMetadata>> GetPaginatedFilesAsync(
+    public async Task<PaginatedResult<FileMetadata>> GetPaginatedAsync(
         Expression<Func<FileMetadata, bool>>? filter = null,
         Expression<Func<FileMetadata, object>>? orderBy = null,
         bool descending = false,
@@ -77,8 +77,4 @@ public class FileMetadataRepository : IFileMetadataRepository
         await _context.SaveChangesAsync();
     }
     
-    public Task<PaginatedResult<FileMetadata>> GetPaginatedAsync(Expression<Func<FileMetadata, bool>> filter, Expression<Func<FileMetadata, object>> orderBy, string sortDescending, int page, int pageSize)
-    {
-        throw new NotImplementedException();
-    }
 }

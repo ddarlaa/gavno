@@ -11,8 +11,12 @@ public interface IFileMetadataRepository
     Task UpdateAsync(FileMetadata metadata);
     Task DeleteAsync(FileMetadata metadata);
     Task<FileMetadata?> FindByHashAsync(string hash);
-    Task<PaginatedResult<FileMetadata>> GetPaginatedFilesAsync(Expression<Func<FileMetadata, bool>>? filter = null, Expression<Func<FileMetadata, object>>? orderBy = null, bool descending = false, int pageNumber = 1, int pageSize = 10);
-    Task SaveChangesAsync();
+   Task SaveChangesAsync();
 
-    Task<PaginatedResult<FileMetadata>> GetPaginatedAsync(Expression<Func<FileMetadata, bool>> filter, Expression<Func<FileMetadata, object>> orderBy, string sortDescending, int page, int pageSize);
+   Task<PaginatedResult<FileMetadata>> GetPaginatedAsync(
+       Expression<Func<FileMetadata, bool>>? filter,
+       Expression<Func<FileMetadata, object>>? orderBy,
+       bool descending,
+       int pageNumber,
+       int pageSize);
 }

@@ -12,10 +12,11 @@ public class UploadSession
     public Guid? FileId { get; set; } // После сборки
     public Guid UserId { get; set; }
     public DateTime CreatedAt { get; set; }
+    public DateTime ExpiresAt { get; set; } = DateTime.UtcNow.AddHours(24);
     public string UploadedChunkIndexes { get; set; } = ""; // Новое поле для отслеживания загруженных чанков
-
-    [Timestamp] // Добавлено для оптимистической блокировки
-    public byte[] RowVersion { get; set; } = null!;
+    //
+    // [Timestamp] // Добавлено для оптимистической блокировки
+    // public byte[]? RowVersion { get; set; }
 
     // Navigation
     public FileMetadata? File { get; set; }

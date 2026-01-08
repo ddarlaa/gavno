@@ -29,15 +29,14 @@ public interface IFileService
     Task<string> GenerateThumbnailAsync(Guid id, string size);
     
     // Список с пагинацией (по ТЗ)
-    Task<PaginatedResult<FileMetadata>> GetFilesAsync(
-        Guid userId, 
-        bool isAdmin, 
-        int page, 
+    Task<PaginatedResult<FileMetadata>> GetFilesAsync(Guid userId,
+        bool isAdmin,
+        int page,
         int pageSize,
         string? contentTypeFilter,
         string? search,
         string sortBy,
-        string? sortDescending);
+        bool sortDescending);
     
     // Удаление (по ТЗ: soft delete ИЛИ физическое)
     Task DeleteAsync(Guid id, Guid currentUserId, bool isAdmin); // Soft delete

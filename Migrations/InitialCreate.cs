@@ -92,7 +92,7 @@ public class InitialCreate : Migration
                 .WithDefault(SystemMethods.CurrentUTCDateTime)
             .WithColumn("UpdatedAt").AsDateTime().NotNullable()
             .WithDefault(SystemMethods.CurrentUTCDateTime)
-            .WithColumn("ExpiresAt").AsDateTime().NotNullable()
+            .WithColumn("ExpiresAt").AsDateTime().Nullable()
             .WithColumn("DeviceInfo").AsString(500).Nullable()
             .WithColumn("IpAddress").AsString(45).Nullable()
             .WithColumn("IsRevoked").AsBoolean().NotNullable().WithDefaultValue(false);
@@ -132,11 +132,9 @@ public class InitialCreate : Migration
             .WithColumn("UploadedBytes").AsInt64().NotNullable().WithDefaultValue(0)
             .WithColumn("TotalChunks").AsInt32().NotNullable()
             .WithColumn("UploadedChunks").AsInt32().NotNullable().WithDefaultValue(0)
-            .WithColumn("TempFilePath").AsString(500).NotNullable()
             .WithColumn("CreatedAt").AsDateTime().NotNullable().WithDefault(SystemMethods.CurrentUTCDateTime)
-            .WithColumn("ExpiresAt").AsDateTime().NotNullable()
+            .WithColumn("ExpiresAt").AsDateTime().Nullable()
             .WithColumn("FileId").AsGuid().Nullable() // Добавлено: FK к FileMetadata
-            .WithColumn("RowVersion").AsCustom("bytea").NotNullable()
             .WithColumn("UploadedChunkIndexes").AsString().NotNullable().WithDefaultValue("");
 
         // Topics

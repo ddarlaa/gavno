@@ -1,8 +1,5 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
-using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace IceBreakerApp.Application.Validators
 {

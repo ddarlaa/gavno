@@ -288,15 +288,14 @@ public class FileService : IFileService
         return _storageSettings.GetFullThumbnailPath(thumbnailRelativePath);
     }
 
-    public async Task<PaginatedResult<FileMetadata>> GetFilesAsync(
-        Guid userId,
+    public async Task<PaginatedResult<FileMetadata>> GetFilesAsync(Guid userId,
         bool isAdmin,
         int page,
         int pageSize,
         string? contentTypeFilter,
         string? search,
         string sortBy,
-        string sortDescending)
+        bool sortDescending)
     {
         // По ТЗ: админ видит все файлы, пользователь - только свои или публичные
         Expression<Func<FileMetadata, bool>> filter = isAdmin
