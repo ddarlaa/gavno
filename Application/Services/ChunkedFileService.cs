@@ -4,10 +4,10 @@ using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Domain;
 using IceBreakerApp.Domain.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http.Internal;
 using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore; // Добавлено для DbUpdateConcurrencyException
-using System.Text.Json; // Добавлено для сериализации/десериализации
 
 namespace IceBreakerApp.Application.Services;
 
@@ -19,19 +19,15 @@ public class ChunkedFileService(
     ILogger<ChunkedFileService> logger)
     : IChunkedFileService
 {
-    private readonly IFileMetadataRepository _fileMetadataRepository = fileMetadataRepository;
-
-    private const int MaxRetries = 5; // Максимальное количество повторных попыток при конфликте параллелизма
+    private const int MaxRetries = 5;
 
     public async Task<UploadProgressResponse> UploadChunkAsync(ChunkUploadRequest request, Guid userId)
     {
-        if (request == null)
-            throw new ArgumentNullException(nameof(request));
+        if (request == null) throw new ArgumentNullException(nameof(request));
 
         // 1. Сохраняем chunk на диск
         var tempDir = Path.Combine(storageSettings.TempPath, request.UploadId.ToString());
         Directory.CreateDirectory(tempDir);
-
         var chunkPath = Path.Combine(tempDir, $"chunk_{request.ChunkIndex}");
 
         await using (var stream = new FileStream(chunkPath, FileMode.Create))
@@ -42,14 +38,15 @@ public class ChunkedFileService(
         int retries = 0;
         while (true)
         {
-            UploadSession? session = null; // Инициализируем session как null здесь
+            UploadSession? session = null;
             try
             {
-                // 2. Получаем или создаем сессию
                 session = await uploadSessionRepository.GetByUploadIdAsync(request.UploadId);
 
                 if (session == null)
                 {
+                    // ВАЖНО: Сохраняем настройки приватности из первого пришедшего чанка
+                    // Убедитесь, что ChunkUploadRequest содержит IsPublic и ExpiresAt
                     session = new UploadSession
                     {
                         UploadId = request.UploadId,
@@ -59,30 +56,27 @@ public class ChunkedFileService(
                         UploadedChunks = 0,
                         CreatedAt = DateTime.UtcNow,
                         UserId = userId,
-                        UploadedChunkIndexes = JsonSerializer.Serialize(new HashSet<int>()) // Инициализация
+                        UploadedChunkIndexes = JsonSerializer.Serialize(new HashSet<int>()),
+                        
+                        // !!! Добавляем сохранение метаданных !!!
+                        IsPublic = request.IsPublic, 
+                        ExpiresAt = request.ExpiresAt
                     };
                     await uploadSessionRepository.AddAsync(session);
-                    await uploadSessionRepository.SaveChangesAsync(); // Сохраняем новую сессию
+                    await uploadSessionRepository.SaveChangesAsync();
                 }
 
-                // Десериализуем индексы загруженных чанков
-                var uploadedChunkIndexes = JsonSerializer.Deserialize<HashSet<int>>(session.UploadedChunkIndexes) ??
-                                           new HashSet<int>();
+                var uploadedChunkIndexes = JsonSerializer.Deserialize<HashSet<int>>(session.UploadedChunkIndexes) ?? new HashSet<int>();
 
-                // 3. Обновляем счетчик (только если chunk еще не был загружен)
-                if (uploadedChunkIndexes.Add(request
-                        .ChunkIndex)) // Add возвращает true, если элемент был добавлен (т.е. его не было)
+                if (uploadedChunkIndexes.Add(request.ChunkIndex))
                 {
                     session.UploadedChunks++;
-                    session.UploadedChunkIndexes =
-                        JsonSerializer.Serialize(uploadedChunkIndexes); // Сериализуем обратно
+                    session.UploadedChunkIndexes = JsonSerializer.Serialize(uploadedChunkIndexes);
                 }
                 else
                 {
-                    // Чанк уже был загружен, возможно, повторный запрос. Просто возвращаем текущий прогресс.
-                    logger.LogInformation(
-                        $"Chunk {request.ChunkIndex} for upload {request.UploadId} already processed.");
-                    // Возвращаем текущий прогресс, так как сессия не изменилась
+                    logger.LogInformation($"Chunk {request.ChunkIndex} for upload {request.UploadId} already processed.");
+                    // Если завершено - финализируем, иначе просто возвращаем статус
                     return new UploadProgressResponse
                     {
                         UploadId = request.UploadId,
@@ -90,8 +84,9 @@ public class ChunkedFileService(
                         TotalChunks = session.TotalChunks,
                         Percentage = (double)session.UploadedChunks / session.TotalChunks * 100,
                         IsComplete = session.UploadedChunks == session.TotalChunks,
-                        File = session.UploadedChunks == session.TotalChunks
-                            ? await FinalizeUploadAsync(request.UploadId)
+                        // Если это был последний чанк (даже повторный), пробуем финализировать
+                        File = session.UploadedChunks == session.TotalChunks 
+                            ? await FinalizeUploadAsync(request.UploadId) 
                             : null
                     };
                 }
@@ -99,7 +94,6 @@ public class ChunkedFileService(
                 await uploadSessionRepository.UpdateAsync(session);
                 await uploadSessionRepository.SaveChangesAsync();
 
-                // 4. Проверяем завершение и возвращаем ответ
                 var complete = session.UploadedChunks == session.TotalChunks;
                 return new UploadProgressResponse
                 {
@@ -113,93 +107,79 @@ public class ChunkedFileService(
             }
             catch (DbUpdateConcurrencyException ex)
             {
-                logger.LogWarning(ex,
-                    $"Concurrency conflict for upload session {request.UploadId}. Retrying... (Attempt {retries + 1}/{MaxRetries})");
+                logger.LogWarning(ex, $"Concurrency conflict for session {request.UploadId}. Retry {retries + 1}/{MaxRetries}");
                 retries++;
-                if (retries >= MaxRetries)
-                {
-                    logger.LogError(ex,
-                        $"Failed to update upload session {request.UploadId} after {MaxRetries} retries due to concurrency conflict.");
-                    throw; // Перебрасываем исключение после исчерпания попыток
-                }
-
-                // Перезагружаем сессию из базы данных, чтобы получить актуальные данные
-                if (session != null)
-                {
-                    await uploadSessionRepository.ReloadSessionAsync(session);
-                }
-                else
-                {
-                    logger.LogError(
-                        "Session was null during concurrency conflict retry. This indicates a logic error.");
-                    throw;
-                }
+                if (retries >= MaxRetries) throw;
+                if (session != null) await uploadSessionRepository.ReloadSessionAsync(session);
             }
         }
     }
 
-    public async Task<bool> IsUploadComplete(Guid uploadId)
-    {
-        var session = await uploadSessionRepository.GetByUploadIdAsync(uploadId);
-        return session?.UploadedChunks == session?.TotalChunks;
-    }
-
-
     public async Task<FileMetadata> FinalizeUploadAsync(Guid uploadId)
     {
         var session = await uploadSessionRepository.GetByUploadIdAsync(uploadId);
-
         if (session == null || session.UploadedChunks != session.TotalChunks)
             throw new InvalidOperationException("Upload not complete");
 
         var tempDir = Path.Combine(storageSettings.TempPath, uploadId.ToString());
         var finalPath = Path.Combine(tempDir, "final.bin");
+        FileMetadata fileMetadata;
 
-        // 1. Проверяем что все chunks существуют
-        for (int i = 0; i < session.TotalChunks; i++)
+        try 
         {
-            var chunkPath = Path.Combine(tempDir, $"chunk_{i}");
-            if (!File.Exists(chunkPath))
-                throw new FileNotFoundException($"Chunk {i} not found");
-        }
-
-        // 2. Склеиваем chunks
-        await using (var finalStream = new FileStream(finalPath, FileMode.Create))
-        {
-            for (int i = 0; i < session.TotalChunks; i++)
+            // 1. Склеиваем chunks
+            // Используем FileMode.Create, чтобы перезаписать, если вдруг файл уже есть (например, повтор операции)
+            await using (var finalStream = new FileStream(finalPath, FileMode.Create))
             {
-                var chunkPath = Path.Combine(tempDir, $"chunk_{i}");
-                await using (var chunkStream = new FileStream(chunkPath, FileMode.Open))
+                for (int i = 0; i < session.TotalChunks; i++)
                 {
-                    await chunkStream.CopyToAsync(finalStream);
+                    var chunkPath = Path.Combine(tempDir, $"chunk_{i}");
+                    if (!File.Exists(chunkPath)) throw new FileNotFoundException($"Chunk {i} not found");
+
+                    await using (var chunkStream = new FileStream(chunkPath, FileMode.Open))
+                    {
+                        await chunkStream.CopyToAsync(finalStream);
+                    }
                 }
-            }
+            } // !!! finalStream закрывается здесь !!!
+
+            // 2. Загружаем через FileService
+            // Открываем поток снова только для чтения
+            await using (var readStream = new FileStream(finalPath, FileMode.Open))
+            {
+                var formFile = new FormFile(
+                    baseStream: readStream,
+                    baseStreamOffset: 0,
+                    length: readStream.Length,
+                    name: "file",
+                    fileName: session.FileName)
+                {
+                    Headers = new HeaderDictionary(),
+                    ContentType = session.ContentType
+                };
+
+                // !!! Передаем сохраненные IsPublic и ExpiresAt !!!
+                fileMetadata = await fileService.UploadAsync(
+                    formFile, 
+                    session.UserId, 
+                    session.IsPublic, // Добавлено в модель сессии
+                    session.ExpiresAt // Добавлено в модель сессии
+                );
+            } // !!! readStream закрывается здесь !!!
+
+            // 3. Обновляем сессию
+            session.FileId = fileMetadata.Id;
+            await uploadSessionRepository.UpdateAsync(session);
+            await uploadSessionRepository.SaveChangesAsync();
+        }
+        catch (Exception)
+        {
+            // Если что-то пошло не так, можно логгировать
+            throw;
         }
 
-        // 3. Создаем IFormFile
-        await using var fileStream = new FileStream(finalPath, FileMode.Open);
-        var fileInfo = new FileInfo(finalPath);
-        
-        var formFile = new FormFile(
-            baseStream: fileStream,
-            baseStreamOffset: 0,
-            length: fileInfo.Length,
-            name: "file",
-            fileName: session.FileName)
-        {
-            Headers = new HeaderDictionary(),
-            ContentType = session.ContentType
-        };
-
-        // 4. Загружаем через FileService
-        var fileMetadata = await fileService.UploadAsync(formFile, session.UserId);
-
-        // 5. Обновляем сессию
-        session.FileId = fileMetadata.Id;
-        await uploadSessionRepository.UpdateAsync(session);
-        await uploadSessionRepository.SaveChangesAsync();
-
-        // 6. Очищаем временные файлы
+        // 4. Очищаем временные файлы
+        // Теперь это безопасно, так как все потоки (streams) закрыты
         try
         {
             if (Directory.Exists(tempDir))
@@ -214,15 +194,18 @@ public class ChunkedFileService(
 
         return fileMetadata;
     }
-
-
+    
+    // ... GetProgressAsync и IsUploadComplete без изменений ...
+    public async Task<bool> IsUploadComplete(Guid uploadId)
+    {
+        var session = await uploadSessionRepository.GetByUploadIdAsync(uploadId);
+        return session?.UploadedChunks == session?.TotalChunks;
+    }
 
     public async Task<UploadProgressResponse> GetProgressAsync(Guid uploadId)
     {
         var session = await uploadSessionRepository.GetByUploadIdAsync(uploadId);
-        
-        if (session == null)
-            throw new KeyNotFoundException($"Upload session {uploadId} not found");
+        if (session == null) throw new KeyNotFoundException($"Upload session {uploadId} not found");
 
         return new UploadProgressResponse
         {

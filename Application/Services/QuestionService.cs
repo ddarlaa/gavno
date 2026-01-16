@@ -43,7 +43,7 @@ namespace IceBreakerApp.Application.Services
             _logger = logger;
             _fileService = fileService; // Добавлено
         }
-
+        
         public async Task<QuestionResponseDTO?> GetByIdAsync(Guid id, CancellationToken ct = default)
         {
             try

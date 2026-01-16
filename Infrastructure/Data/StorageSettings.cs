@@ -26,7 +26,20 @@ public class StorageSettings : IFileStorageSettings
 
     public string GetFullThumbnailPath(string relativeThumbPath)
     {
-        return Path.Combine(ThumbnailsPath, relativeThumbPath);
+        // Получаем корневую папку запуска приложения (где лежит appsettings.json)
+        var appRoot = Directory.GetCurrentDirectory();
+
+        // Если путь в базе УЖЕ содержит начальную папку (например, "Storage/Thumbnails/...")
+        // то нам не нужно добавлять ThumbnailsPath из конфига снова.
+    
+        // Проверка на всякий случай, чтобы убрать дублирование
+        if (relativeThumbPath.Replace("\\", "/").StartsWith(ThumbnailsPath.Replace("\\", "/")))
+        {
+            return Path.Combine(appRoot, relativeThumbPath);
+        }
+
+        // Если путь в базе "чистый" (например "2026/01/13/img.jpg"), то добавляем папку из конфига
+        return Path.Combine(appRoot, ThumbnailsPath, relativeThumbPath);
     }
 
     public bool IsImageExtension(string extension)

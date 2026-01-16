@@ -134,6 +134,7 @@ public class InitialCreate : Migration
             .WithColumn("UploadedChunks").AsInt32().NotNullable().WithDefaultValue(0)
             .WithColumn("CreatedAt").AsDateTime().NotNullable().WithDefault(SystemMethods.CurrentUTCDateTime)
             .WithColumn("ExpiresAt").AsDateTime().Nullable()
+            .WithColumn("IsPublic").AsBoolean().Nullable().WithDefaultValue(false)
             .WithColumn("FileId").AsGuid().Nullable() // Добавлено: FK к FileMetadata
             .WithColumn("UploadedChunkIndexes").AsString().NotNullable().WithDefaultValue("");
 

@@ -174,7 +174,7 @@ public class SeedInitialData : Migration
                 Id = Guid.Parse("44444444-4444-4444-4444-444444444444"),
                 Username = "admin",
                 Email = "admin@icebreaker.com", 
-                PasswordHash = HashPassword("Admin123!"),
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
                 FirstName = "Администратор",
                 LastName = "Системы",
                 DisplayName = "Admin",

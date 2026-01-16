@@ -12,7 +12,7 @@ public interface IFileService
         Guid userId, 
         bool isPublic = false, 
         DateTime? expiresAt = null);
-    
+   
     Task<List<FileMetadata>> UploadMultipleAsync(
         List<IFormFile> files, 
         Guid userId, 
@@ -25,9 +25,6 @@ public interface IFileService
     Task<Stream> GetFileStreamAsync(Guid id);
     Task IncrementDownloadCountAsync(Guid id);
     
-    // Thumbnails (по ТЗ)
-    Task<string> GenerateThumbnailAsync(Guid id, string size);
-    
     // Список с пагинацией (по ТЗ)
     Task<PaginatedResult<FileMetadata>> GetFilesAsync(Guid userId,
         bool isAdmin,
@@ -38,8 +35,25 @@ public interface IFileService
         string sortBy,
         bool sortDescending);
     
+    
+    
+    Task<FileMetadata> UploadLargeFileAsync(
+        IFormFile file,
+        Guid userId,
+        bool isPublic = false,
+        DateTime? expiresAt = null,
+        CancellationToken cancellationToken = default);
+
+    // Оставь этот метод для чистого streaming
+    Task<StreamUploadResultDto> UploadFileStreamAsync(
+        Stream fileStream,
+        StreamUploadDto uploadDto,
+        Guid userId,
+        CancellationToken cancellationToken = default);
     // Удаление (по ТЗ: soft delete ИЛИ физическое)
     Task DeleteAsync(Guid id, Guid currentUserId, bool isAdmin); // Soft delete
-    Task HardDeleteAsync(Guid id, Guid currentUserId, bool isAdmin); // Физическое
+
     Task<string> GetThumbnailPathAsync(Guid id, string size);
-}
+    
+
+    }

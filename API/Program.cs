@@ -1,5 +1,5 @@
+using System;
 using FluentMigrator.Runner;
-using FluentMigrator.Runner.Processors;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using IceBreakerApp.API.Middleware;
@@ -23,15 +23,18 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Infrastructure.Data;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
+// Удалите using Microsoft.OpenApi; если есть
+// Добавьте эти using:
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // =============================================================================
 // КОНФИГУРАЦИЯ СЕРВИСОВ
 // =============================================================================
-// В самом начале метода Main
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 // Логирование
@@ -39,16 +42,13 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
-
 // Настройка контекста базы данных для Entity Framework
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    // EF Core используется только как ORM, миграции управляются FluentMigrator
     options.UseNpgsql(connectionString);
     options.EnableSensitiveDataLogging();
 });
-
 
 // Fluent Migrator
 builder.Services.AddFluentMigratorCore()
@@ -61,39 +61,40 @@ builder.Services.AddFluentMigratorCore()
 // JWT Configuration
 var jwtSettingsSection = builder.Configuration.GetSection("JwtSettings");
 builder.Services.Configure<JwtSettings>(jwtSettingsSection);
-var jwtSettings = jwtSettingsSection.Get<JwtSettings>();
 
 // JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var secretKey = jwtSettings?.SecretKey ?? throw new InvalidOperationException("JWT SecretKey is not configured");
+        var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+        var secret = jwtSettings["SecretKey"] ?? "your-super-secret-key-at-least-32-characters-long";
+        var issuer = jwtSettings["Issuer"] ?? "IceBreakerApp";
+        var audience = jwtSettings["Audience"] ?? "IceBreakerAppUsers";
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
+            ValidIssuer = issuer,
+
             ValidateAudience = true,
+            ValidAudience = audience,
+
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtSettings.Issuer,
-            ValidAudience = jwtSettings.Audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
             ClockSkew = TimeSpan.Zero
         };
     });
 
 // Authorization Policies
+
 builder.Services.AddAuthorization(options =>
 {
-    // Role-based policies
     options.AddPolicy("RequireAdminRole", policy => policy.RequireAdminRole());
     options.AddPolicy("RequireModeratorOrAdmin", policy => policy.RequireModeratorOrAdmin());
     options.AddPolicy("RequireUserOrAdmin", policy => policy.RequireRole("User", "Admin"));
-    
-    // Claim-based policies
     options.AddPolicy("RequireEmailConfirmed", policy => policy.RequireEmailConfirmed());
     options.AddPolicy("RequirePremiumSubscription", policy => policy.RequirePremiumSubscription());
-    
-    // Resource-based policies
     options.AddPolicy("CanEditQuestion", policy => 
         policy.RequireRole("Admin", "Moderator")
               .AddRequirements(new ResourceOwnerRequirement("question")));
@@ -114,9 +115,14 @@ builder.Services.AddAuthorization(options =>
 });
 
 // Контроллеры
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = null;
+        options.JsonSerializerOptions.DictionaryKeyPolicy = null;
+    });
 
-// Swagger Documentation
+// Swagger Documentation - ИСПРАВЛЕННАЯ ВЕРСИЯ
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -124,17 +130,29 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "IceBreakerApp API",
         Version = "v1",
-        Description = "API для лабораторной работы по аутентификации"
+        Description = "API для лабораторной работы",
+        Contact = new OpenApiContact
+        {
+            Name = "Разработчик",
+            Email = "email@example.com"
+        },
+        License = new OpenApiLicense
+        {
+            Name = "MIT License",
+            Url = new Uri("https://opensource.org/licenses/MIT")
+        }
     });
 
-    // JWT поддержка в Swagger
+    // JWT конфигурация для Swagger
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
+        Description = "JWT Authorization header using the Bearer scheme.\r\n\r\n" +
+                      "Enter 'Bearer' [space] and then your token in the text input below.\r\n\r\n" +
+                      "Example: 'Bearer 12345abcdef'",
         Name = "Authorization",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer"
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -151,45 +169,52 @@ builder.Services.AddSwaggerGen(options =>
             Array.Empty<string>()
         }
     });
+    
+    // Включить аннотации если используете
+    // options.EnableAnnotations();
+    
+    // Для корректной работы с XML комментариями
+    // var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    // var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    // options.IncludeXmlComments(xmlPath);
+});
+
+// Настройка Kestrel
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    serverOptions.Limits.MaxRequestBodySize = 524288000; // 500 МБ
 });
 
 // CORS
-builder.Services.AddCors(options => options.AddPolicy("ApiCorsPolicy", policy =>
+builder.Services.AddCors(options =>
 {
-    policy.WithOrigins("http://localhost:3000", "http://localhost:8080", "https://yourdomain.com")
-        .AllowAnyMethod()
-        .AllowAnyHeader();
-}));
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 
 // Валидация
 builder.Services.AddFluentValidationAutoValidation();
-
-// Явно регистрируем только синхронные валидаторы для избежания конфликтов с асинхронными
 builder.Services.AddScoped<IValidator<RegisterRequestDTO>, RegisterRequestSyncValidator>();
 builder.Services.AddScoped<RegisterRequestSyncValidator>();
+builder.Services.AddMemoryCache();
 
 // AutoMapper
 builder.Services.AddAutoMapper(cfg =>
 {
-    // User маппинги
     cfg.CreateMap<User, UserResponseDTO>().ReverseMap();
     cfg.CreateMap<User, UserListItemDTO>();
-
-    // Question маппинги
     cfg.CreateMap<Question, QuestionResponseDTO>();
     cfg.CreateMap<UpdateQuestionDTO, Question>();
     cfg.CreateMap<CreateQuestionDTO, Question>();
-
-    // Topic маппинги
     cfg.CreateMap<Topic, TopicResponseDTO>();
     cfg.CreateMap<CreateTopicDTO, Topic>();
     cfg.CreateMap<Topic, TopicListItemDTO>();
-
-    // QuestionAnswer маппинги
     cfg.CreateMap<QuestionAnswer, QuestionAnswerResponseDTO>();
     cfg.CreateMap<CreateQuestionAnswerDTO, QuestionAnswer>();
-
-    // BaseEntity маппинг для наследников
     cfg.CreateMap<BaseEntity, BaseEntity>();
 });
 
@@ -204,8 +229,6 @@ builder.Services.AddHealthChecks();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 builder.Services.AddScoped<IUserRoleRepository, UserRoleRepository>();
-
-// Репозитории для проверки владения ресурсами
 builder.Services.AddScoped<IQuestionRepository, QuestionRepository>();
 builder.Services.AddScoped<IQuestionAnswerRepository, QuestionAnswerRepository>();
 builder.Services.AddScoped<IQuestionLikeRepository, QuestionLikeRepository>();
@@ -219,27 +242,31 @@ builder.Services.AddScoped<ITopicService, TopicService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IFileStorageSettings, StorageSettings>();
 builder.Services.AddScoped<IChunkedFileService, ChunkedFileService>();
-
-// Сервисы вопросов и ответов
 builder.Services.AddScoped<IQuestionService, QuestionService>();
 builder.Services.AddScoped<IQuestionAnswerService, QuestionAnswerService>();
 builder.Services.AddScoped<IQuestionLikeService, QuestionLikeService>();
-
-// Сервисы авторизации
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IEmailService, MockEmailService>();
-
-// Authorization Services
 builder.Services.AddScoped<IAuthorizationHandler, ResourceOwnerRequirementHandler>();
 builder.Services.AddScoped<IRoleService, RoleService>();
 
+// Настройка обработки Multipart форм
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.ValueLengthLimit = int.MaxValue;
+    options.MultipartBodyLengthLimit = 524288000; // 500 МБ
+    options.MemoryBufferThreshold = int.MaxValue;
+});
+
+// =============================================================================
+// BUILD APP
+// =============================================================================
 var app = builder.Build();
 
 // =============================================================================
-// ПРИМЕНЕНИЕ FLUENTMIGRATOR МИГРАЦИЙ
+// ПРИМЕНЕНИЕ FLUENT MIGRATOR МИГРАЦИЙ
 // =============================================================================
-
 try
 {
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
@@ -253,14 +280,12 @@ try
     if (migrations.Any())
     {
         logger.LogInformation($"Найдено {migrations.Count} миграций");
-        
-        // Применяем миграции
         runner.MigrateUp();
         logger.LogInformation("FluentMigrator миграции успешно применены");
     }
     else
     {
-        logger.LogWarning("Миграции не найдены. Создайте классы миграций.");
+        logger.LogWarning("Миграции не найдены.");
     }
 }
 catch (Exception ex)
@@ -273,16 +298,13 @@ catch (Exception ex)
 // =============================================================================
 // КОНФИГУРАЦИЯ PIPELINE
 // =============================================================================
-
-// Настройка HTTPS редиректа
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
 
-// Middleware pipeline
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
-app.UseCors("ApiCorsPolicy");
+app.UseCors("AllowAll");
 app.UseAuthentication(); 
 app.UseAuthorization();
 
@@ -291,10 +313,12 @@ app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
     options.SwaggerEndpoint("/swagger/v1/swagger.json", "IceBreaker API v1");
-    options.RoutePrefix = "swagger"; // Теперь будет доступно по /swagger
+    options.RoutePrefix = "swagger";
+    options.DisplayRequestDuration();
+    options.EnableFilter();
+    options.EnableTryItOutByDefault();
 });
 
-// Контроллеры
 app.MapControllers();
 
 // Health Check
@@ -303,21 +327,24 @@ app.MapGet("/api/health", () => Results.Ok(new
     status = "Healthy",
     timestamp = DateTime.UtcNow,
     version = "1.0.0"
-})).WithTags("Health");
+})).WithTags("Health").AllowAnonymous();
 
 // =============================================================================
 // ЗАПУСК ПРИЛОЖЕНИЯ
 // =============================================================================
-
 try
 {
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("Запуск Ice Breaker API...");
+    logger.LogInformation($"Environment: {app.Environment.EnvironmentName}");
+    logger.LogInformation($"Application started. Press Ctrl+C to shut down.");
+    logger.LogInformation($"Swagger UI доступен по: {app.Urls.FirstOrDefault()}/swagger");
     
     app.Run();
 }
 catch (Exception ex)
 {
-    app.Logger.LogCritical(ex, "Критическая ошибка при запуске приложения");
+    var logger = app.Services.GetService<ILogger<Program>>() ?? app.Logger;
+    logger.LogCritical(ex, "Критическая ошибка при запуске приложения");
     throw;
 }

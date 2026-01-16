@@ -15,7 +15,6 @@ public class MultipleFileUploadRequest
     public bool IsPublic { get; set; } = false;
     public DateTime? ExpiresAt { get; set; }
 }
-
 public class FileMetadataDto
 {
     public Guid Id { get; set; }

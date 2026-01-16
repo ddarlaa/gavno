@@ -12,7 +12,8 @@ public class UploadSession
     public Guid? FileId { get; set; } // После сборки
     public Guid UserId { get; set; }
     public DateTime CreatedAt { get; set; }
-    public DateTime ExpiresAt { get; set; } = DateTime.UtcNow.AddHours(24);
+    public bool IsPublic { get; set; }
+    public DateTime? ExpiresAt { get; set; } = DateTime.UtcNow.AddHours(100);
     public string UploadedChunkIndexes { get; set; } = ""; // Новое поле для отслеживания загруженных чанков
     //
     // [Timestamp] // Добавлено для оптимистической блокировки
