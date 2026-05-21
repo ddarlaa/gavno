@@ -1,8 +1,10 @@
+using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Domain.Models;
-using Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-using IceBreakerApp.Application.IRepositories; // Добавлено
+// Добавлено
+
+namespace Infrastructure.Repositories;
 
 public class UploadSessionRepository : IUploadSessionRepository
 {

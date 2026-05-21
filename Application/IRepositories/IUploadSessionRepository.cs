@@ -2,6 +2,8 @@
 
 using IceBreakerApp.Domain.Models;
 
+namespace IceBreakerApp.Application.IRepositories;
+
 public interface IUploadSessionRepository
 {
     Task<UploadSession?> GetByUploadIdAsync(Guid uploadId);

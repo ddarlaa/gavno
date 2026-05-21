@@ -1,6 +1,8 @@
 ﻿using FluentValidation;
 using IceBreakerApp.Application.DTOs.Update;
 
+namespace IceBreakerApp.Application.Validators;
+
 public class UpdateUserValidator : AbstractValidator<UpdateUserDTO>
 {
     public UpdateUserValidator()

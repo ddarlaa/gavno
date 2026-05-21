@@ -1,4 +1,4 @@
-﻿namespace IceBreakerApp.Application.DTOs;
+﻿namespace IceBreakerApp.Application.DTOs.Create;
 
 public class CreateQuestionDTO
 {

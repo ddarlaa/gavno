@@ -9,6 +9,9 @@ public class InitialCreate : Migration
     // Создание таблиц и колонок, здесь только каркас таблиц
     public override void Up()
     {
+    
+        // Включаем расширение для UUID
+        Execute.Sql("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";");
         // Users
         Create.Table("Users")
             .WithColumn("Id").AsGuid().PrimaryKey()

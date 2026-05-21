@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using IceBreakerApp.Application.DTOs;
+using IceBreakerApp.Application.DTOs.Create;
 using IceBreakerApp.Application.IServices;
 
 namespace IceBreakerApp.Application.Validators;

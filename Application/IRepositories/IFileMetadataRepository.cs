@@ -1,6 +1,7 @@
 using IceBreakerApp.Domain;
 using System.Linq.Expressions;
 using IceBreakerApp.Application.DTOs;
+using IceBreakerApp.Domain.Models;
 
 namespace IceBreakerApp.Application.IRepositories;
 

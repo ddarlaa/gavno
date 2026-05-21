@@ -1,6 +1,4 @@
-using IceBreakerApp.Domain.Models;
-
-namespace IceBreakerApp.Domain;
+namespace IceBreakerApp.Domain.Models;
 public class FileMetadata
 {
     public Guid Id { get; set; }

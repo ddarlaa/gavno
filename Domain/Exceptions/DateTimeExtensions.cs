@@ -1,6 +1,4 @@
-using System;
-
-namespace IceBreakerApp.Domain
+namespace IceBreakerApp.Domain.Exceptions
 {
     /// <summary>
     /// Методы расширения для работы с DateTime в PostgreSQL

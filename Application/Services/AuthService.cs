@@ -4,6 +4,7 @@ using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Domain;
+using IceBreakerApp.Domain.Exceptions;
 using IceBreakerApp.Domain.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;

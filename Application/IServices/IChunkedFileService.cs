@@ -1,5 +1,6 @@
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Domain;
+using IceBreakerApp.Domain.Models;
 
 namespace IceBreakerApp.Application.IServices;
 

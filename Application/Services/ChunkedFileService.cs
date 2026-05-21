@@ -1,12 +1,10 @@
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Application.IRepositories;
-using IceBreakerApp.Domain;
 using IceBreakerApp.Domain.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
-using Microsoft.AspNetCore.Http.Internal;
 using Microsoft.Extensions.Logging;
 
 namespace IceBreakerApp.Application.Services;

@@ -1,7 +1,6 @@
 using AutoMapper;
 using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Application.IServices;
-using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
 using Microsoft.Extensions.Logging;
 

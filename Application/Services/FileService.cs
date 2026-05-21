@@ -11,6 +11,7 @@ using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp.Metadata.Profiles.Exif;
 using System.Linq.Expressions;
 using IceBreakerApp.Application.Utils;
+using IceBreakerApp.Domain.Models;
 
 namespace IceBreakerApp.Application.Services;
 

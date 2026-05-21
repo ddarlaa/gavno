@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Domain;
+using IceBreakerApp.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repositories;

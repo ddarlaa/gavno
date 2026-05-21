@@ -1,3 +1,4 @@
+using IceBreakerApp.Application;
 using IceBreakerApp.Application.IServices;
 
 namespace Infrastructure.Data;

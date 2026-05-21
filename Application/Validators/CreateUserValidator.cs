@@ -2,6 +2,8 @@
 using IceBreakerApp.Application.DTOs.Create;
 using IceBreakerApp.Application.IServices;
 
+namespace IceBreakerApp.Application.Validators;
+
 public class CreateUserValidator : AbstractValidator<CreateUserDTO>
 {
     private readonly IUserService _userService;

@@ -15,13 +15,15 @@ using Infrastructure.Repositories;
 using IceBreakerApp.Application.Services;
 using IceBreakerApp.Application.Validators;
 using IceBreakerApp.Application.IServices;
-using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
 using Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json;
+using IceBreakerApp.Application;
+using IceBreakerApp.Application.DTOs.Create;
 using Infrastructure.Data;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +31,7 @@ using Microsoft.EntityFrameworkCore;
 // Добавьте эти using:
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Mvc;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -84,10 +87,95 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
             ClockSkew = TimeSpan.Zero
         };
+        options.TokenValidationParameters.NameClaimType = "nameid";
+        
+        // ВАЖНО: Настройка для SignalR
+       options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var path = context.HttpContext.Request.Path;
+                if (path.StartsWithSegments("/hubs/file-notifications"))
+                {
+                    var token = context.Request.Query["access_token"];
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        context.Token = token;
+                    }
+                }
+                return Task.CompletedTask;
+            },
+            
+            // Обработка ошибок аутентификации
+            OnAuthenticationFailed = context =>
+            {
+                var logger = context.HttpContext.RequestServices
+                    .GetRequiredService<ILogger<Program>>();
+                
+                logger.LogWarning($"Authentication failed: {context.Exception.Message}");
+                
+                // Для SignalR соединений
+                if (context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                {
+                    context.Response.StatusCode = 401;
+                    context.Response.ContentType = "application/json";
+                    
+                    var errorResponse = JsonSerializer.Serialize(new
+                    {
+                        error = "Unauthorized",
+                        message = "Authentication failed"
+                    });
+                    
+                    return context.Response.WriteAsync(errorResponse);
+                }
+                
+                return Task.CompletedTask;
+            },
+            
+            // Когда токен отсутствует
+            OnChallenge = context =>
+            {
+                if (context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                {
+                    context.HandleResponse();
+                    context.Response.StatusCode = 401;
+                    context.Response.ContentType = "application/json";
+                    
+                    var errorResponse = JsonSerializer.Serialize(new
+                    {
+                        error = "Unauthorized",
+                        message = "Token is required"
+                    });
+                    
+                    return context.Response.WriteAsync(errorResponse);
+                }
+                
+                return Task.CompletedTask;
+            }
+        };
     });
 
-// Authorization Policies
+// Настройка CORS для SignalR
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("SignalRPolicy", policy =>
+    {
+        policy.SetIsOriginAllowed(_ => true)
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials()  
+              .SetIsOriginAllowed(_ => true);
+    });
+    
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader();
+    });
+});
 
+// Authorization Policies
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("RequireAdminRole", policy => policy.RequireAdminRole());
@@ -122,7 +210,19 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.DictionaryKeyPolicy = null;
     });
 
-// Swagger Documentation - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// Настройка SignalR
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+    options.KeepAliveInterval = TimeSpan.FromSeconds(10);
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+    options.MaximumReceiveMessageSize = 1024 * 1024; // 1 MB
+}).AddJsonProtocol(options =>
+{
+    options.PayloadSerializerOptions.PropertyNamingPolicy = null;
+});
+
+// Swagger Documentation
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -169,31 +269,12 @@ builder.Services.AddSwaggerGen(options =>
             Array.Empty<string>()
         }
     });
-    
-    // Включить аннотации если используете
-    // options.EnableAnnotations();
-    
-    // Для корректной работы с XML комментариями
-    // var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    // var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    // options.IncludeXmlComments(xmlPath);
 });
 
 // Настройка Kestrel
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
     serverOptions.Limits.MaxRequestBodySize = 524288000; // 500 МБ
-});
-
-// CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
 });
 
 // Валидация
@@ -250,6 +331,7 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IEmailService, MockEmailService>();
 builder.Services.AddScoped<IAuthorizationHandler, ResourceOwnerRequirementHandler>();
 builder.Services.AddScoped<IRoleService, RoleService>();
+builder.Services.AddScoped<IFileNotificationService, FileNotificationService>();
 
 // Настройка обработки Multipart форм
 builder.Services.Configure<FormOptions>(options =>
@@ -304,7 +386,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
-app.UseCors("AllowAll");
+app.UseCors("SignalRPolicy"); // ДОЛЖНО БЫТЬ ДО UseAuthentication и UseAuthorization
 app.UseAuthentication(); 
 app.UseAuthorization();
 
@@ -319,7 +401,14 @@ app.UseSwaggerUI(options =>
     options.EnableTryItOutByDefault();
 });
 
+// Настройка SignalR хаба
+app.MapHub<FileNotificationHub>("/hubs/file-notifications")
+   .RequireCors("SignalRPolicy");
+
 app.MapControllers();
+// Включаем сбор метрик
+app.UseHttpMetrics(); // автоматические метрики HTTP
+app.MapMetrics();     // эндпоинт /metrics
 
 // Health Check
 app.MapGet("/api/health", () => Results.Ok(new
@@ -329,6 +418,7 @@ app.MapGet("/api/health", () => Results.Ok(new
     version = "1.0.0"
 })).WithTags("Health").AllowAnonymous();
 
+
 // =============================================================================
 // ЗАПУСК ПРИЛОЖЕНИЯ
 // =============================================================================
@@ -337,7 +427,8 @@ try
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("Запуск Ice Breaker API...");
     logger.LogInformation($"Environment: {app.Environment.EnvironmentName}");
-    logger.LogInformation($"Application started. Press Ctrl+C to shut down.");
+    logger.LogInformation($"SignalR Hub доступен по: /hubs/file-notifications");
+    logger.LogInformation($"WebSocket URL: ws://localhost:5047/hubs/file-notifications");
     logger.LogInformation($"Swagger UI доступен по: {app.Urls.FirstOrDefault()}/swagger");
     
     app.Run();

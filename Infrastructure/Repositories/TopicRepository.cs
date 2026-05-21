@@ -1,5 +1,5 @@
 ﻿using IceBreakerApp.Application.DTOs;
-using IceBreakerApp.Domain.IRepositories;
+using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Domain.Models;
 using Microsoft.EntityFrameworkCore;
 

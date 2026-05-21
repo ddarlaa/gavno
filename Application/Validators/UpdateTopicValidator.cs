@@ -2,6 +2,8 @@
 using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IServices;
 
+namespace IceBreakerApp.Application.Validators;
+
 public class UpdateTopicValidator : AbstractValidator<UpdateTopicDTO>
 {
     private readonly ITopicService _topicService;

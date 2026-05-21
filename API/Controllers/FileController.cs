@@ -2,23 +2,15 @@ using System.Security.Claims;
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Application.Validators;
+using IceBreakerApp.Domain.Models;
+using Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Net.Mime;
-using IceBreakerApp.Domain;
-using Infrastructure.Data;
-using Microsoft.AspNetCore.Mvc.Filters;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using ContentDispositionHeaderValue = System.Net.Http.Headers.ContentDispositionHeaderValue;
-using FileUploadRequest = IceBreakerApp.Application.DTOs.FileUploadRequest;
-using MediaTypeHeaderValue = System.Net.Http.Headers.MediaTypeHeaderValue;
-using Microsoft.Net.Http.Headers; // Для HeaderNames и ContentDispositionHeaderValue
 
-
-
+namespace IceBreakerApp.API.Controllers;
 
 [ApiController]
 [Route("api/files")]
@@ -43,65 +35,156 @@ public class FilesController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> Upload([FromForm] FileUploadRequest request)
     {
-        var validator = new FileUploadValidator();
-        var result = await validator.ValidateAsync(request.File);
+        Guid userId = Guid.Empty;
 
-        if (!result.IsValid)
+        try
         {
-            return BadRequest(result.Errors.Select(e => e.ErrorMessage));
+            // Получаем ID пользователя
+            userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            // Валидация файла
+            var validator = new FileUploadValidator();
+            var result = await validator.ValidateAsync(request.File);
+
+            if (!result.IsValid)
+            {
+                return BadRequest(result.Errors.Select(e => e.ErrorMessage));
+            }
+
+            // Получаем сервис уведомлений
+            var notificationService = HttpContext.RequestServices
+                .GetRequiredService<IFileNotificationService>();
+
+            // Отправляем уведомление о начале загрузки
+            await notificationService.NotifyUploadStartedAsync(
+                userId, request.File.FileName, request.File.Length);
+
+            // Используем вашу существующую систему загрузки
+            var metadata = await _fileService.UploadAsync(request.File, userId, request.IsPublic, request.ExpiresAt);
+
+            // Отправляем уведомление о завершении
+            var fileUrl = $"/api/files/{metadata.Id}";
+            var thumbnailUrl = IsImage(metadata.ContentType)
+                ? $"/api/files/{metadata.Id}/thumbnail?size=small"
+                : null;
+
+            await notificationService.NotifyUploadCompletedAsync(
+                metadata.Id, userId, metadata.OriginalFileName, metadata.Size, fileUrl, thumbnailUrl);
+
+            
+            var dto = new FileMetadataDto
+            {
+                Id = metadata.Id,
+                OriginalFileName = metadata.OriginalFileName,
+                Size = metadata.Size,
+                ContentType = metadata.ContentType,
+                UploadedAt = metadata.UploadedAt,
+                Url = fileUrl,
+                ThumbnailUrl = thumbnailUrl,
+                Width = metadata.Width,
+                Height = metadata.Height,
+                FileType = GetFileType(metadata.ContentType),
+                IsPublic = metadata.IsPublic,
+                ExpiresAt = metadata.ExpiresAt
+            };
+            // Возвращаем результат
+            return Created(fileUrl, dto);
         }
-
-        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var metadata = await _fileService.UploadAsync(request.File, userId, request.IsPublic, request.ExpiresAt);
-        return Ok(new FileMetadataDto
+        catch (Exception ex)
         {
-            Id = metadata.Id,
-            OriginalFileName = metadata.OriginalFileName,
-            Size = metadata.Size,
-            ContentType = metadata.ContentType,
-            UploadedAt = metadata.UploadedAt,
-            Url = $"/api/files/{metadata.Id}",
-            ThumbnailUrl = IsImage(metadata.ContentType) ? $"/api/files/{metadata.Id}/thumbnail?size=small" : null,
-            Width = metadata.Width,
-            Height = metadata.Height,
-            FileType = GetFileType(metadata.ContentType),
-            IsPublic = metadata.IsPublic,
-            ExpiresAt = metadata.ExpiresAt
-        });
+            _logger.LogError(ex, $"Ошибка при загрузке файла пользователем {userId}");
+
+            // Отправляем уведомление об ошибке
+            if (userId != Guid.Empty)
+            {
+                var notificationService = HttpContext.RequestServices
+                    .GetRequiredService<IFileNotificationService>();
+                await notificationService.NotifyUploadFailedAsync(
+                    userId, request?.File?.FileName ?? "Unknown file", ex.Message);
+            }
+
+            return StatusCode(500, "Внутренняя ошибка сервера при загрузке файла");
+        }
     }
 
     [HttpPost("upload-multiple")]
     public async Task<IActionResult> UploadMultiple([FromForm] MultipleFileUploadRequest request)
     {
-        var validator = new MultipleFileUploadValidator();
-        var validationResult = await validator.ValidateAsync(request);
+        Guid userId = Guid.Empty;
+        List<FileMetadataDto> uploadedFiles = new List<FileMetadataDto>();
 
-        if (!validationResult.IsValid)
+        try
         {
-            return BadRequest(validationResult.Errors.Select(e => e.ErrorMessage));
+            userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            var validator = new MultipleFileUploadValidator();
+            var validationResult = await validator.ValidateAsync(request);
+
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(validationResult.Errors.Select(e => e.ErrorMessage));
+            }
+
+            var notificationService = HttpContext.RequestServices
+                .GetRequiredService<IFileNotificationService>();
+
+            // Уведомление о начале пакетной загрузки
+            var totalSize = request.Files.Sum(f => f.Length);
+            await notificationService.NotifyBatchUploadStartedAsync(
+                userId, request.Files.Count, totalSize);
+
+            // Используем вашу существующую систему загрузки
+            var metadataList = await _fileService.UploadMultipleAsync(
+                request.Files, userId, request.IsPublic, request.ExpiresAt);
+
+            // Преобразуем в DTO и отправляем уведомления о каждом файле
+            foreach (var metadata in metadataList)
+            {
+                var fileUrl = $"/api/files/{metadata.Id}";
+                var thumbnailUrl = IsImage(metadata.ContentType)
+                    ? $"/api/files/{metadata.Id}/thumbnail?size=small"
+                    : null;
+
+                await notificationService.NotifyUploadCompletedAsync(
+                    metadata.Id, userId, metadata.OriginalFileName, metadata.Size, fileUrl, thumbnailUrl);
+
+                uploadedFiles.Add(new FileMetadataDto
+                {
+                    Id = metadata.Id,
+                    OriginalFileName = metadata.OriginalFileName,
+                    Size = metadata.Size,
+                    ContentType = metadata.ContentType,
+                    UploadedAt = metadata.UploadedAt,
+                    Url = fileUrl,
+                    ThumbnailUrl = thumbnailUrl,
+                    Width = metadata.Width,
+                    Height = metadata.Height,
+                    FileType = GetFileType(metadata.ContentType),
+                    IsPublic = metadata.IsPublic,
+                    ExpiresAt = metadata.ExpiresAt
+                });
+            }
+
+            // Уведомление о завершении пакетной загрузки
+            await notificationService.NotifyBatchUploadCompletedAsync(
+                userId, request.Files.Count, uploadedFiles);
+
+            return Ok(uploadedFiles);
         }
-
-        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var metadataList =
-            await _fileService.UploadMultipleAsync(request.Files, userId, request.IsPublic, request.ExpiresAt);
-
-        var dtos = metadataList.Select(metadata => new FileMetadataDto
+        catch (Exception ex)
         {
-            Id = metadata.Id,
-            OriginalFileName = metadata.OriginalFileName,
-            Size = metadata.Size,
-            ContentType = metadata.ContentType,
-            UploadedAt = metadata.UploadedAt,
-            Url = $"/api/files/{metadata.Id}",
-            ThumbnailUrl = IsImage(metadata.ContentType) ? $"/api/files/{metadata.Id}/thumbnail?size=small" : null,
-            Width = metadata.Width,
-            Height = metadata.Height,
-            FileType = GetFileType(metadata.ContentType),
-            IsPublic = metadata.IsPublic,
-            ExpiresAt = metadata.ExpiresAt
-        }).ToList();
+            _logger.LogError(ex, $"Ошибка при пакетной загрузке пользователем {userId}");
 
-        return Ok(dtos);
+            if (userId != Guid.Empty)
+            {
+                var notificationService = HttpContext.RequestServices
+                    .GetRequiredService<IFileNotificationService>();
+                await notificationService.NotifyBatchUploadFailedAsync(
+                    userId, ex.Message, uploadedFiles.Count);
+            }
+
+            return StatusCode(500, "Внутренняя ошибка сервера при пакетной загрузке");
+        }
     }
 
     [HttpGet]
@@ -140,36 +223,66 @@ public class FilesController : ControllerBase
         return Ok(new PaginatedResult<FileMetadataDto>(dtos, paginatedResult.TotalCount, paginatedResult.PageNumber,
             paginatedResult.PageSize));
     }
+    [HttpPost("test-notify")]
+    public async Task<IActionResult> TestNotify()
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var notificationService = HttpContext.RequestServices
+            .GetRequiredService<IFileNotificationService>();
     
+        await notificationService.NotifyUploadStartedAsync(
+            userId, "test-file.png", 1024);
+    
+        await notificationService.NotifyUploadCompletedAsync(
+            Guid.NewGuid(), userId, "test-file.png", 1024, "/api/files/test");
+    
+        return Ok("Test notifications sent to userId: " + userId);
+    }
 
-   [HttpGet("{id}")]
-    // ЭТИ АТРИБУТЫ ВАЖНЫ ДЛЯ SWAGGER:
-    // Говорит Swagger-у, что метод возвращает поток файла
+    [HttpGet("{id}")]
     [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
-    // Говорит Swagger-у, что возможны бинарные типы (чтобы он не пытался парсить их как JSON/Текст)
-    [Produces("application/octet-stream", "application/pdf", "image/jpeg", "image/png")] 
+    [Produces("application/octet-stream", "application/pdf", "image/jpeg", "image/png")]
     public async Task<IActionResult> Download(Guid id)
     {
+        Guid currentUserId = Guid.Empty;
+        FileMetadata metadata = null;
+
         try
         {
-            var metadata = await _fileService.GetAsync(id);
+            // Получаем идентификатор пользователя
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var currentUserId = userId != null ? Guid.Parse(userId) : (Guid?)null;
+            currentUserId = userId != null ? Guid.Parse(userId) : Guid.Empty;
 
+            // Получаем метаданные файла
+            metadata = await _fileService.GetAsync(id);
+
+            // Проверка срока действия
             if (metadata.ExpiresAt.HasValue && metadata.ExpiresAt.Value < DateTime.UtcNow)
             {
                 return NotFound("Файл истек или не найден.");
             }
 
+            // Проверка прав доступа
             if (!metadata.IsPublic && metadata.UploadedById != currentUserId && !User.IsInRole("Admin"))
             {
                 return Forbid("У вас нет прав для скачивания этого файла.");
             }
 
+            // Создаем сервис уведомлений
+            var notificationService = HttpContext.RequestServices
+                .GetRequiredService<IFileNotificationService>();
+
+            // Отправляем уведомление о начале скачивания
+            await notificationService.NotifyDownloadStartedAsync(
+                id, currentUserId, metadata.OriginalFileName, metadata.Size);
+
+            // Увеличиваем счетчик скачиваний
             await _fileService.IncrementDownloadCountAsync(id);
+
+            // Получаем поток файла
             var stream = await _fileService.GetFileStreamAsync(id);
 
-            // ОПРЕДЕЛЯЕМ ТИП КОНТЕНТА
+            // Определяем тип контента
             string contentType = metadata.ContentType;
             var extension = Path.GetExtension(metadata.OriginalFileName)?.ToLowerInvariant();
 
@@ -177,43 +290,74 @@ public class FilesController : ControllerBase
             else if (extension == ".jpg" || extension == ".jpeg") contentType = "image/jpeg";
             else if (extension == ".png") contentType = "image/png";
 
-            // ВАЖНО: Если вы хотите, чтобы файл ВСЕГДА скачивался (даже в браузере),
-            // а не открывался для просмотра, используйте "attachment".
-            // Если хотите предпросмотр в браузере, но кнопку в Swagger — используйте код ниже с атрибутами.
-            
-            // Чтобы гарантированно была кнопка "Скачать" и никакого предпросмотра нигде:
+            // Настраиваем заголовки для скачивания
             var contentDisposition = new ContentDispositionHeaderValue("attachment");
-            
-            // Если все же хотите открывать PDF в браузере, но в Swagger скачивать, 
-            // оставьте "inline", но атрибуты [Produces...] сверху решат проблему отображения текста в Swagger.
-            // var isInline = IsInlineDisplayable(contentType);
-            // var contentDisposition = new ContentDispositionHeaderValue(isInline ? "inline" : "attachment");
-
-            contentDisposition.FileName = metadata.OriginalFileName; 
+            contentDisposition.FileName = metadata.OriginalFileName;
             contentDisposition.FileNameStar = metadata.OriginalFileName;
 
             Response.Headers[HeaderNames.ContentDisposition] = contentDisposition.ToString();
             Response.Headers[HeaderNames.ContentType] = contentType;
 
+            // Отправляем файл
             return File(stream, contentType, enableRangeProcessing: true);
         }
         catch (FileNotFoundException ex)
         {
             _logger.LogWarning(ex, $"Файл с ID {id} не найден.");
+
+            // Отправляем уведомление об ошибке
+            if (metadata != null && currentUserId != Guid.Empty)
+            {
+                var notificationService = HttpContext.RequestServices
+                    .GetRequiredService<IFileNotificationService>();
+                await notificationService.NotifyDownloadFailedAsync(
+                    id, currentUserId, metadata.OriginalFileName, "Файл не найден");
+            }
+
             return NotFound("Файл не найден.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, $"Ошибка при скачивании файла с ID {id}.");
+
+            // Отправляем уведомление об ошибке
+            if (metadata != null && currentUserId != Guid.Empty)
+            {
+                var notificationService = HttpContext.RequestServices
+                    .GetRequiredService<IFileNotificationService>();
+                await notificationService.NotifyDownloadFailedAsync(
+                    id, currentUserId, metadata.OriginalFileName, ex.Message);
+            }
+
             return StatusCode(500, "Внутренняя ошибка сервера.");
         }
+        finally
+        {
+            // После успешного скачивания отправляем уведомление о завершении
+            if (metadata != null && currentUserId != Guid.Empty && Response.StatusCode == 200)
+            {
+                try
+                {
+                    var notificationService = HttpContext.RequestServices
+                        .GetRequiredService<IFileNotificationService>();
+                    await notificationService.NotifyDownloadCompletedAsync(
+                        id, currentUserId, metadata.OriginalFileName, metadata.Size);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Ошибка при отправке финального уведомления о скачивании");
+                }
+            }
+        }
     }
+
     private bool IsInlineDisplayable(string contentType)
     {
         // Открываем в браузере картинки и PDF
         return contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) ||
                contentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase);
     }
+
     /// <summary>
     /// Потоковая отдача файла с поддержкой Range requests
     /// </summary>
@@ -257,7 +401,6 @@ public class FilesController : ControllerBase
         }
     }
 
-    
 
     [HttpPost("upload-stream")]
     [Authorize]
@@ -322,102 +465,6 @@ public class FilesController : ControllerBase
         }
     }
 
-    //
-    // /// <summary>
-    //     /// Скачать файл
-    //     /// </summary>
-    //     /// <param name="id">Идентификатор файла</param>
-    //     [HttpGet("{id}")]
-    //     [AllowAnonymous]
-    //     [ProducesResponseType(StatusCodes.Status200OK)]
-    //     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    //     [ProducesResponseType(StatusCodes.Status403Forbidden)]
-    //     [ProducesResponseType(StatusCodes.Status410Gone)]
-    //     public async Task<IActionResult> DownloadFile(Guid id)
-    //     {
-    //         try
-    //         {
-    //             _logger.LogInformation("Запрос на скачивание файла {FileId}", id);
-    //
-    //             // Получаем текущего пользователя (может быть null для анонимных)
-    //             var currentUserId = GetCurrentUserId();
-    //             Guid? userId = currentUserId != Guid.Empty ? currentUserId : null;
-    //
-    //             // Проверяем права доступа и получаем метаданные
-    //             var fileInfo = await _fileService.GetFileMetadataAsync(id, userId);
-    //             if (fileInfo == null)
-    //             {
-    //                 _logger.LogWarning("Файл {FileId} не найден", id);
-    //                 return NotFound(new { error = "Файл не найден" });
-    //             }
-    //
-    //             // Проверяем права доступа (IsPublic, владелец, админ)
-    //             var isOwner = fileInfo.UploadedById == currentUserId;
-    //             var isAdmin = User.IsInRole("Admin");
-    //             var isPublic = fileInfo.IsPublic;
-    //
-    //             if (!isPublic && !isOwner && !isAdmin)
-    //             {
-    //                 _logger.LogWarning("Доступ к файлу {FileId} запрещен для пользователя {UserId}",
-    //                     id, currentUserId);
-    //                 return StatusCode(StatusCodes.Status403Forbidden,
-    //                     new { error = "Доступ запрещен" });
-    //             }
-    //
-    //             // Проверяем срок действия
-    //             if (fileInfo.ExpiresAt.HasValue && fileInfo.ExpiresAt.Value < DateTime.UtcNow)
-    //             {
-    //                 _logger.LogWarning("Срок действия файла {FileId} истёк", id);
-    //                 return StatusCode(StatusCodes.Status410Gone,
-    //                     new { error = "Срок действия файла истёк" });
-    //             }
-    //
-    //             // Скачиваем файл (метод уже увеличивает DownloadCount)
-    //             var (stream, contentType, fileName) =
-    //                 await _fileService.DownloadFileAsync(id, userId);
-    //
-    //             _logger.LogInformation("Файл {FileId} скачивается, ContentType: {ContentType}",
-    //                 id, contentType);
-    //
-    //             // Определяем Content-Disposition
-    //             var isImage = contentType.StartsWith("image/");
-    //             var isPdf = contentType == "application/pdf";
-    //             var contentDisposition = isImage || isPdf ? "inline" : "attachment";
-    //
-    //             // Устанавливаем заголовки
-    //             Response.Headers.Append("Content-Disposition",
-    //                 $"{contentDisposition}; filename=\"{fileName}\"");
-    //             Response.Headers.Append("X-File-Id", id.ToString());
-    //             Response.Headers.Append("X-File-Name", fileName);
-    //
-    //             return File(stream, contentType);
-    //         }
-    //         catch (FileNotFoundException)
-    //         {
-    //             _logger.LogWarning("Файл {FileId} не найден при скачивании", id);
-    //             return NotFound(new { error = "Файл не найден" });
-    //         }
-    //         catch (UnauthorizedAccessException)
-    //         {
-    //             _logger.LogWarning("Доступ к файлу {FileId} запрещен", id);
-    //             return StatusCode(StatusCodes.Status403Forbidden,
-    //                 new { error = "Доступ запрещен" });
-    //         }
-    //         catch (InvalidOperationException ex) when (ex.Message.Contains("истёк"))
-    //         {
-    //             _logger.LogWarning("Срок действия файла {FileId} истёк", id);
-    //             return StatusCode(StatusCodes.Status410Gone,
-    //                 new { error = "Срок действия файла истёк" });
-    //         }
-    //         catch (Exception ex)
-    //         {
-    //             _logger.LogError(ex, "Ошибка при скачивании файла {FileId}", id);
-    //             return StatusCode(StatusCodes.Status500InternalServerError,
-    //                 new { error = "Внутренняя ошибка сервера" });
-    //         }
-    //     }
-
-    
 
     [HttpGet("{id}/info")]
     public async Task<IActionResult> GetFileInfo(Guid id)
@@ -501,12 +548,12 @@ public class FilesController : ControllerBase
             }
 
             // Добавляем Cache-Control и ETag заголовки
-            Response.Headers["Cache-Control"] = new Microsoft.Net.Http.Headers.CacheControlHeaderValue
+            Response.Headers.CacheControl = new Microsoft.Net.Http.Headers.CacheControlHeaderValue
             {
                 Public = true,
                 MaxAge = TimeSpan.FromDays(365) // Кэшировать на 1 год
             }.ToString();
-            Response.Headers["ETag"] = new Microsoft.Net.Http.Headers.EntityTagHeaderValue(
+            Response.Headers.ETag = new Microsoft.Net.Http.Headers.EntityTagHeaderValue(
                 $"\"{metadata.Hash}_{size}\"", true).ToString(); // ETag на основе хеша файла и размера миниатюры
 
             return PhysicalFile(thumbPath, mimeType);
@@ -605,7 +652,6 @@ public class FilesController : ControllerBase
 
     private bool IsImage(string contentType) => contentType.StartsWith("image/");
 
-   
 
     private Guid GetCurrentUserId()
     {
@@ -615,91 +661,51 @@ public class FilesController : ControllerBase
 
         return Guid.TryParse(userIdClaim, out var userId) ? userId : Guid.Empty;
     }
-    
-    
-    #region Range Streaming Support
+}
 
-    private class RangeHelper
+// Вспомогательный класс для отслеживания прогресса скачивания
+public class ProgressStream : Stream
+{
+    private readonly Stream _innerStream;
+    private readonly long _totalBytes;
+    private readonly Func<long, long, Task> _progressCallback;
+    private long _bytesRead;
+
+    public ProgressStream(Stream innerStream, long totalBytes, Func<long, long, Task> progressCallback)
     {
-        public long Start { get; set; }
-        public long End { get; set; }
-        public long Length { get; set; }
-        public long TotalLength { get; set; }
-
-        public static bool TryParse(string rangeHeader, long totalLength, out RangeHelper range)
-        {
-            range = null;
-
-            if (string.IsNullOrEmpty(rangeHeader) || !rangeHeader.StartsWith("bytes="))
-                return false;
-
-            var rangeValue = rangeHeader.Substring("bytes=".Length);
-            var ranges = rangeValue.Split('-');
-
-            if (ranges.Length != 2)
-                return false;
-
-            long start, end;
-
-            if (string.IsNullOrEmpty(ranges[0]))
-            {
-                // Формат: bytes=-500 (последние 500 байт)
-                if (!long.TryParse(ranges[1], out var suffixLength))
-                    return false;
-
-                start = totalLength - suffixLength;
-                end = totalLength - 1;
-            }
-            else if (string.IsNullOrEmpty(ranges[1]))
-            {
-                // Формат: bytes=500- (с 500 байта до конца)
-                if (!long.TryParse(ranges[0], out start))
-                    return false;
-
-                end = totalLength - 1;
-            }
-            else
-            {
-                // Формат: bytes=0-1023 (конкретный диапазон)
-                if (!long.TryParse(ranges[0], out start) || !long.TryParse(ranges[1], out end))
-                    return false;
-            }
-
-            // Валидация
-            if (start < 0 || end >= totalLength || start > end)
-                return false;
-
-            range = new RangeHelper
-            {
-                Start = start,
-                End = end,
-                Length = end - start + 1,
-                TotalLength = totalLength
-            };
-
-            return true;
-        }
+        _innerStream = innerStream;
+        _totalBytes = totalBytes;
+        _progressCallback = progressCallback;
+        _bytesRead = 0;
     }
 
-    private async Task CopyStreamRangeAsync(Stream source, Stream destination, long start, long length)
+    public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
-        var buffer = new byte[4096]; // 4KB chunks
-        long bytesCopied = 0;
-
-        source.Seek(start, SeekOrigin.Begin);
-
-        while (bytesCopied < length)
+        var bytesRead = await _innerStream.ReadAsync(buffer, offset, count, cancellationToken);
+        if (bytesRead > 0)
         {
-            var bytesToRead = (int)Math.Min(buffer.Length, length - bytesCopied);
-            var bytesRead = await source.ReadAsync(buffer, 0, bytesToRead);
-
-            if (bytesRead == 0) break;
-
-            await destination.WriteAsync(buffer, 0, bytesRead);
-            bytesCopied += bytesRead;
+            _bytesRead += bytesRead;
+            await _progressCallback(_bytesRead, _totalBytes);
         }
+
+        return bytesRead;
     }
 
-    #endregion
+    // Реализация остальных методов Stream
+    public override bool CanRead => _innerStream.CanRead;
+    public override bool CanSeek => _innerStream.CanSeek;
+    public override bool CanWrite => _innerStream.CanWrite;
+    public override long Length => _innerStream.Length;
 
+    public override long Position
+    {
+        get => _innerStream.Position;
+        set => _innerStream.Position = value;
+    }
+
+    public override void Flush() => _innerStream.Flush();
+    public override int Read(byte[] buffer, int offset, int count) => _innerStream.Read(buffer, offset, count);
+    public override long Seek(long offset, SeekOrigin origin) => _innerStream.Seek(offset, origin);
+    public override void SetLength(long value) => _innerStream.SetLength(value);
+    public override void Write(byte[] buffer, int offset, int count) => _innerStream.Write(buffer, offset, count);
 }

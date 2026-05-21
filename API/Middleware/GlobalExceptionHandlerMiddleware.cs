@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Text.Json;
+using IceBreakerApp.Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 
 namespace IceBreakerApp.API.Middleware;

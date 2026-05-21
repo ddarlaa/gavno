@@ -5,8 +5,10 @@ using IceBreakerApp.Application.IServices;
 using IceBreakerApp.Domain.Models;
 using Microsoft.Extensions.Logging;
 using AutoMapper;
+using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Domain;
+using IceBreakerApp.Domain.Exceptions;
 
 namespace IceBreakerApp.Application.Services;
 

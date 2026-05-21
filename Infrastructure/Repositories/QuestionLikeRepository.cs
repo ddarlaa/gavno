@@ -1,7 +1,5 @@
 ﻿using IceBreakerApp.Application.IRepositories;
 using Microsoft.EntityFrameworkCore;
-using IceBreakerApp.Domain;
-using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
 
 namespace Infrastructure.Repositories

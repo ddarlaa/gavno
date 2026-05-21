@@ -2,6 +2,7 @@
 using IceBreakerApp.Application.Authorization;
 using IceBreakerApp.Application.Authorization.Requirements;
 using IceBreakerApp.Application.DTOs;
+using IceBreakerApp.Application.DTOs.Create;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IServices;

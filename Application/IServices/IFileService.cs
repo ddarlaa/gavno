@@ -1,5 +1,6 @@
 using IceBreakerApp.Application.DTOs;
 using IceBreakerApp.Domain;
+using IceBreakerApp.Domain.Models;
 using Microsoft.AspNetCore.Http;
 
 namespace IceBreakerApp.Application.IServices;
@@ -24,7 +25,7 @@ public interface IFileService
     Task<FileMetadata> GetInfoAsync(Guid id, Guid currentUserId, bool isAdmin);
     Task<Stream> GetFileStreamAsync(Guid id);
     Task IncrementDownloadCountAsync(Guid id);
-    
+   
     // Список с пагинацией (по ТЗ)
     Task<PaginatedResult<FileMetadata>> GetFilesAsync(Guid userId,
         bool isAdmin,

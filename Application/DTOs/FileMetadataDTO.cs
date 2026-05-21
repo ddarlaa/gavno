@@ -45,7 +45,7 @@ public class FilesQuery
 }
 
 
-public class UploadProgressDto
+public partial class UploadProgressDto
 {
     public Guid UploadId { get; set; }
     public int UploadedChunks { get; set; }

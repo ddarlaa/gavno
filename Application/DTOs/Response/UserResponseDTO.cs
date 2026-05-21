@@ -1,4 +1,4 @@
-﻿namespace IceBreakerApp.Application.DTOs.Update;
+﻿namespace IceBreakerApp.Application.DTOs.Response;
 
 public class UserResponseDTO
 {

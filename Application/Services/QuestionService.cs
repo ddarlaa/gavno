@@ -1,13 +1,12 @@
 using AutoMapper;
 using IceBreakerApp.Application.DTOs;
+using IceBreakerApp.Application.DTOs.Create;
 using IceBreakerApp.Application.DTOs.Response;
 using IceBreakerApp.Application.DTOs.Update;
 using IceBreakerApp.Application.IRepositories;
 using IceBreakerApp.Application.IServices;
-using IceBreakerApp.Domain;
-using IceBreakerApp.Domain.IRepositories;
 using IceBreakerApp.Domain.Models;
-using IceBreakerApp.Domain;
+using IceBreakerApp.Domain.Exceptions;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.Extensions.Logging;
 

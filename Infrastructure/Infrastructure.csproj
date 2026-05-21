@@ -4,6 +4,7 @@
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     </PropertyGroup>
 
     <ItemGroup>
@@ -12,6 +13,7 @@
       <PackageReference Include="FluentMigrator.Runner" Version="7.2.0" />
       <PackageReference Include="FluentMigrator.Runner.Postgres" Version="7.2.0" />
       <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+      <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
       <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     </ItemGroup>
 
@@ -28,10 +30,6 @@
       <Content Include="obj\Debug\net9.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig" />
       <Content Include="obj\Debug\net9.0\Infrastructure.pdb" />
       <Content Include="obj\Debug\net9.0\Infrastructure.sourcelink.json" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Compile Include="obj\Debug\net9.0\Infrastructure.AssemblyInfo.cs" />
     </ItemGroup>
 
 </Project>

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace IceBreakerApp.Application.Validators
 {
-    public class FileUploadValidator : AbstractValidator<IFormFile>
+    public partial class FileUploadValidator : AbstractValidator<IFormFile>
     {
         private readonly long _maxFileSize = 50 * 1024 * 1024; // 50 MB
         private readonly string[] _allowedImageExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
