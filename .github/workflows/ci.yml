@@ -64,7 +64,7 @@ jobs:
             exit 1
           }
           # Acceptance gate: 5xx error rate
-          $query = [System.Web.HttpUtility]::UrlEncode('rate(http_requests_received_total{status=~"5.."}[1m])')
+          $query = [uri]::EscapeDataString('rate(http_requests_received_total{status=~"5.."}[1m])')
           $url = "http://localhost:9090/api/v1/query?query=$query"
           try {
             $json = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content | ConvertFrom-Json
