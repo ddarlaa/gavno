@@ -10,7 +10,7 @@ namespace IceBreakerApp.Application.DTOs
         public int ChunkIndex { get; set; }
         public int TotalChunks { get; set; }
         public string FileName { get; set; } = null!;
-        public string ContentType { get; set; }
+        public string ContentType { get; set; } = null!;
 
         // !!! Добавьте эти поля !!!
         public bool IsPublic { get; set; } = false;

@@ -6,16 +6,16 @@ namespace IceBreakerApp.Application.DTOs.Create
     {
         [Required]
         [StringLength(100, MinimumLength = 3)]
-        public string Username { get; set; }
+        public string Username { get; set; } = null!;
 
         [Required]
         [EmailAddress]
         [StringLength(255)]
-        public string Email { get; set; }
+        public string Email { get; set; } = null!;
 
         [Required]
         [StringLength(100, MinimumLength = 6)]
-        public string Password { get; set; }
+        public string Password { get; set; } = null!;
 
         [StringLength(100)]
         public string? DisplayName { get; set; }

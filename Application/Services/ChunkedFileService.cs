@@ -10,7 +10,6 @@ using Microsoft.Extensions.Logging;
 namespace IceBreakerApp.Application.Services;
 
 public class ChunkedFileService(
-    IFileMetadataRepository fileMetadataRepository,
     IUploadSessionRepository uploadSessionRepository,
     IFileService fileService,
     IFileStorageSettings storageSettings,
