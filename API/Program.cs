@@ -411,14 +411,8 @@ app.UseHttpMetrics(); // автоматические метрики HTTP
 app.MapMetrics();     // эндпоинт /metrics
 
 // Health Check
-app.MapGet("/api/health", () => Results.Ok(new
-{
-    status = "Healthy",
-    timestamp = DateTime.UtcNow,
-    version = "1.0.0"
-})).WithTags("Health").AllowAnonymous();
 
-
+app.MapGet("/health", () => Results.StatusCode(500));
 // =============================================================================
 // ЗАПУСК ПРИЛОЖЕНИЯ
 // =============================================================================
