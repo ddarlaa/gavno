@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [laba 5]
+    branches: [main]
 
 jobs:
   build:
@@ -13,10 +13,10 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-      - name: Restore and Build
-        run: dotnet build IceBreakerApp.sln
-      - name: Run tests
-        run: dotnet test IceBreakerApp.sln
+      - name: Restore & Test
+        run: |
+          dotnet restore
+          dotnet test --no-restore
 
   docker-build-push:
     needs: build
@@ -28,36 +28,11 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Set short SHA
-        id: vars
-        run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
+          context: .
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/icebreakerapp:latest
-            ${{ secrets.DOCKER_USERNAME }}/icebreakerapp:${{ env.SHORT_SHA }}
-            
-  deploy:
-    needs: docker-build-push
-    runs-on: self-hosted
-    steps:
-      - name: Pull and redeploy
-        run: |
-          cd /путь/к/проекту   # путь к папке, где лежит docker-compose.yml
-          docker compose pull web   # если образ web:latest обновился
-          docker compose up -d --force-recreate web
-      - name: Verify deployment
-        run: |
-          sleep 15
-          curl -f http://localhost/health || exit 1
-          ERROR_RATE=$(curl -s "http://localhost:9090/api/v1/query" \
-            --data-urlencode 'query=rate(http_requests_received_total{status=~"5.."}[1m])' \
-            | jq '.data.result[0].value[1] // "0"')
-          echo "5xx error rate: $ERROR_RATE"
-          if (( $(echo "$ERROR_RATE > 0.05" | bc -l) )); then
-            echo "Error rate too high, deployment failed"
-            exit 1
-          fi
-          echo "Deployment verified successfully"
+            ${{ secrets.DOCKER_USERNAME }}/IceBreakerApp:latest
+            ${{ secrets.DOCKER_USERNAME }}/IceBreakerApp:${{ github.sha }}
