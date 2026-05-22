@@ -17,7 +17,7 @@ jobs:
         run: |
           dotnet restore
           dotnet test --no-restore
-
+    
   docker-build-push:
     needs: build
     runs-on: ubuntu-latest
@@ -36,3 +36,6 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/IceBreakerApp:latest
             ${{ secrets.DOCKER_USERNAME }}/IceBreakerApp:${{ github.sha }}
+      
+
+  
