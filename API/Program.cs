@@ -285,13 +285,13 @@ builder.Services.AddAutoMapper(cfg =>
 {
     cfg.CreateMap<User, UserResponseDTO>().ReverseMap();
     cfg.CreateMap<User, UserListItemDTO>();
-    cfg.CreateMap<Question, QuestionResponseDTO>();
+    cfg.CreateMap<Question, QuestionResponseDto>();
     cfg.CreateMap<UpdateQuestionDTO, Question>();
     cfg.CreateMap<CreateQuestionDTO, Question>();
     cfg.CreateMap<Topic, TopicResponseDTO>();
     cfg.CreateMap<CreateTopicDTO, Topic>();
     cfg.CreateMap<Topic, TopicListItemDTO>();
-    cfg.CreateMap<QuestionAnswer, QuestionAnswerResponseDTO>();
+    cfg.CreateMap<QuestionAnswer, QuestionAnswerResponseDto>();
     cfg.CreateMap<CreateQuestionAnswerDTO, QuestionAnswer>();
     cfg.CreateMap<BaseEntity, BaseEntity>();
 });

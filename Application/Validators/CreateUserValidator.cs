@@ -4,7 +4,7 @@ using IceBreakerApp.Application.IServices;
 
 namespace IceBreakerApp.Application.Validators;
 
-public class CreateUserValidator : AbstractValidator<CreateUserDTO>
+public class CreateUserValidator : AbstractValidator<CreateUserDto>
 {
     private readonly IUserService _userService;
 

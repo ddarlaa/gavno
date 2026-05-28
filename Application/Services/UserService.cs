@@ -50,7 +50,7 @@ public class UserService : IUserService
     }
 
     public async Task<UserResponseDTO> CreateAsync(
-        CreateUserDTO createDto, 
+        CreateUserDto createDto, 
         CancellationToken cancellationToken = default)
     {
         // Проверка уникальности email

@@ -7,25 +7,25 @@ namespace IceBreakerApp.Application.IServices;
 
 public interface IQuestionAnswerService
 {
-    public Task<QuestionAnswerResponseDTO?> GetByIdAsync(Guid id, CancellationToken ct = default);
-    public Task<PaginatedResult<QuestionAnswerResponseDTO>> GetAllAsync(
+    public Task<QuestionAnswerResponseDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    public Task<PaginatedResult<QuestionAnswerResponseDto>> GetAllAsync(
         int pageNumber,
         int pageSize,
         Guid? questionId = null,
         Guid? userId = null,
         CancellationToken cancellationToken = default);
 
-    public Task<QuestionAnswerResponseDTO> CreateAsync(CreateQuestionAnswerDTO dto,
+    public Task<QuestionAnswerResponseDto> CreateAsync(CreateQuestionAnswerDTO dto,
         CancellationToken cancellationToken = default);
 
-    public Task<List<QuestionAnswerResponseDTO>> BulkCreateAsync(IEnumerable<CreateQuestionAnswerDTO> dtos,
+    public Task<List<QuestionAnswerResponseDto>> BulkCreateAsync(IEnumerable<CreateQuestionAnswerDTO> dtos,
         CancellationToken cancellationToken = default);
 
     public Task UpdateAsync(Guid id, UpdateQuestionAnswerDTO dto, CancellationToken cancellationToken = default);
     public Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 
     public Task AcceptAsync(Guid answerId, CancellationToken cancellationToken = default);
-    public Task<QuestionAnswerResponseDTO> GetAcceptedAsync(Guid questionId,
+    public Task<QuestionAnswerResponseDto> GetAcceptedAsync(Guid questionId,
         CancellationToken cancellationToken = default);
     
     Task<int> GetAnswerCountAsync(Guid questionId, CancellationToken cancellationToken = default);

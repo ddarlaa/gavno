@@ -40,16 +40,16 @@ public class ModerationController : ControllerBase
     /// </summary>
     [HttpGet("questions/pending")]
     [SwaggerOperation(Summary = "Get questions pending moderation")]
-    [SwaggerResponse(200, "Success", typeof(PaginatedResult<QuestionResponseDTO>))]
-    public async Task<ActionResult<PaginatedResult<QuestionResponseDTO>>> GetPendingQuestions(
+    [SwaggerResponse(200, "Success", typeof(PaginatedResult<QuestionResponseDto>))]
+    public async Task<ActionResult<PaginatedResult<QuestionResponseDto>>> GetPendingQuestions(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
         CancellationToken cancellationToken = default)
     {
         // Демо-данные вопросов на модерации
-        var questions = new List<QuestionResponseDTO>
+        var questions = new List<QuestionResponseDto>
         {
-            new QuestionResponseDTO
+            new QuestionResponseDto
             {
                 Id = Guid.NewGuid(),
                 Title = "Question 1",
@@ -66,45 +66,45 @@ public class ModerationController : ControllerBase
             }
         };
 
-        var result = new PaginatedResult<QuestionResponseDTO>(
+        var result = new PaginatedResult<QuestionResponseDto>(
             questions, questions.Count, pageNumber, pageSize);
 
         return Ok(result);
     }
 
-    /// <summary>
-    /// Получить ответы, ожидающие модерации
-    /// </summary>
-    [HttpGet("answers/pending")]
-    [SwaggerOperation(Summary = "Get answers pending moderation")]
-    [SwaggerResponse(200, "Success", typeof(PaginatedResult<QuestionAnswerResponseDTO>))]
-    public async Task<ActionResult<PaginatedResult<QuestionAnswerResponseDTO>>> GetPendingAnswers(
-        [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize = 10,
-        CancellationToken cancellationToken = default)
-    {
-        // Демо-данные ответов на модерации
-        var answers = new List<QuestionAnswerResponseDTO>
-        {
-            new QuestionAnswerResponseDTO
-            {
-                Id = Guid.NewGuid(),
-                Content = "This is an answer that needs moderation",
-                QuestionId = Guid.NewGuid(),
-                UserId = Guid.NewGuid(),
-                Username = "user2",
-                ViewCount = 2,
-                IsAccepted = false,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow.AddHours(-1)
-            }
-        };
-
-        var result = new PaginatedResult<QuestionAnswerResponseDTO>(
-            answers, answers.Count, pageNumber, pageSize);
-
-        return Ok(result);
-    }
+    // /// <summary>
+    // /// Получить ответы, ожидающие модерации
+    // /// </summary>
+    // [HttpGet("answers/pending")]
+    // [SwaggerOperation(Summary = "Get answers pending moderation")]
+    // [SwaggerResponse(200, "Success", typeof(PaginatedResult<QuestionAnswerResponseDto>))]
+    // // public async Task<ActionResult<PaginatedResult<QuestionAnswerResponseDto>>> GetPendingAnswers(
+    //     [FromQuery] int pageNumber = 1,
+    //     [FromQuery] int pageSize = 10,
+    //     CancellationToken cancellationToken = default)
+    // {
+    //     // // Демо-данные ответов на модерации
+    //     // var answers = new List<QuestionAnswerResponseDto>
+    //     // {
+    //     //     new QuestionAnswerResponseDto
+    //     //     {
+    //     //         Id = Guid.NewGuid(),
+    //     //         Content = "This is an answer that needs moderation",
+    //     //         QuestionId = Guid.NewGuid(),
+    //     //         UserId = Guid.NewGuid(),
+    //     //         Username = "user2",
+    //     //         ViewCount = 2,
+    //     //         IsAccepted = false,
+    //     //         IsActive = true,
+    //     //         CreatedAt = DateTime.UtcNow.AddHours(-1)
+    //     //     }
+    //     // };
+    //
+    //     // var result = new PaginatedResult<QuestionAnswerResponseDto>(
+    //     //     answers, answers.Count, pageNumber, pageSize);
+    //
+    //     return Ok(result);
+    // }
 
     /// <summary>
     /// Одобрить вопрос

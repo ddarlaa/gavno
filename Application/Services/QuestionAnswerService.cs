@@ -33,7 +33,7 @@ namespace IceBreakerApp.Application.Services
             _logger = logger;
         }
 
-        public async Task<QuestionAnswerResponseDTO?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        public async Task<QuestionAnswerResponseDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
         {
             try
             {
@@ -43,7 +43,7 @@ namespace IceBreakerApp.Application.Services
 
                 var user = await _userRepository.GetByIdAsync(answer.UserId, ct);
 
-                var response = _mapper.Map<QuestionAnswerResponseDTO>(answer);
+                var response = _mapper.Map<QuestionAnswerResponseDto>(answer);
                 response.Username = user?.Username ?? "Unknown";
 
                 return response;
@@ -55,7 +55,7 @@ namespace IceBreakerApp.Application.Services
             }
         }
 
-        public async Task<PaginatedResult<QuestionAnswerResponseDTO>> GetAllAsync(
+        public async Task<PaginatedResult<QuestionAnswerResponseDto>> GetAllAsync(
             int pageNumber,
             int pageSize,
             Guid? questionId = null,
@@ -67,19 +67,19 @@ namespace IceBreakerApp.Application.Services
                 var paginatedResult = await _answerRepository.GetPaginatedAsync(
                     pageNumber, pageSize, questionId, userId, ct);
 
-                var responseList = new List<QuestionAnswerResponseDTO>();
+                var responseList = new List<QuestionAnswerResponseDto>();
 
                 foreach (var answer in paginatedResult.Items)
                 {
                     var user = await _userRepository.GetByIdAsync(answer.UserId, ct);
 
-                    var response = _mapper.Map<QuestionAnswerResponseDTO>(answer);
+                    var response = _mapper.Map<QuestionAnswerResponseDto>(answer);
                     response.Username = user?.Username ?? "Unknown";
 
                     responseList.Add(response);
                 }
 
-                return new PaginatedResult<QuestionAnswerResponseDTO>(
+                return new PaginatedResult<QuestionAnswerResponseDto>(
                     responseList, paginatedResult.TotalCount, pageNumber, pageSize);
             }
             catch (Exception ex)
@@ -89,7 +89,7 @@ namespace IceBreakerApp.Application.Services
             }
         }
 
-        public async Task<QuestionAnswerResponseDTO> CreateAsync(CreateQuestionAnswerDTO dto, CancellationToken ct = default)
+        public async Task<QuestionAnswerResponseDto> CreateAsync(CreateQuestionAnswerDTO dto, CancellationToken ct = default)
         {
             try
             {
@@ -117,7 +117,7 @@ namespace IceBreakerApp.Application.Services
                 question.AnswerCount++;
                 await _questionRepository.UpdateAsync(question, ct);
 
-                var response = _mapper.Map<QuestionAnswerResponseDTO>(answer);
+                var response = _mapper.Map<QuestionAnswerResponseDto>(answer);
                 response.Username = user.Username;
 
                 _logger.LogInformation("Answer created successfully: {AnswerId} for question: {QuestionId} by user: {UserId}", 
@@ -132,12 +132,12 @@ namespace IceBreakerApp.Application.Services
             }
         }
 
-        public async Task<List<QuestionAnswerResponseDTO>> BulkCreateAsync(IEnumerable<CreateQuestionAnswerDTO> dtos, CancellationToken ct = default)
+        public async Task<List<QuestionAnswerResponseDto>> BulkCreateAsync(IEnumerable<CreateQuestionAnswerDTO> dtos, CancellationToken ct = default)
         {
             try
             {
                 var answers = new List<QuestionAnswer>();
-                var responses = new List<QuestionAnswerResponseDTO>();
+                var responses = new List<QuestionAnswerResponseDto>();
 
                 foreach (var dto in dtos)
                 {
@@ -160,7 +160,7 @@ namespace IceBreakerApp.Application.Services
 
                     answers.Add(answer);
 
-                    var response = _mapper.Map<QuestionAnswerResponseDTO>(answer);
+                    var response = _mapper.Map<QuestionAnswerResponseDto>(answer);
                     response.Username = user.Username;
                     responses.Add(response);
                 }
@@ -272,7 +272,7 @@ namespace IceBreakerApp.Application.Services
             }
         }
 
-        public async Task<QuestionAnswerResponseDTO> GetAcceptedAsync(Guid questionId, CancellationToken ct = default)
+        public async Task<QuestionAnswerResponseDto> GetAcceptedAsync(Guid questionId, CancellationToken ct = default)
         {
             try
             {
@@ -282,7 +282,7 @@ namespace IceBreakerApp.Application.Services
 
                 var user = await _userRepository.GetByIdAsync(answer.UserId, ct);
 
-                var response = _mapper.Map<QuestionAnswerResponseDTO>(answer);
+                var response = _mapper.Map<QuestionAnswerResponseDto>(answer);
                 response.Username = user?.Username ?? "Unknown";
 
                 return response;

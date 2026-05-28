@@ -2,7 +2,7 @@
 
 namespace IceBreakerApp.Application.DTOs.Create
 {
-    public class CreateUserDTO
+    public class CreateUserDto
     {
         [Required]
         [StringLength(100, MinimumLength = 3)]

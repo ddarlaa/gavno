@@ -55,7 +55,7 @@ public class UsersController(IUserService service) : ControllerBase
     [SwaggerResponse(201, "Created", typeof(UserResponseDTO))]
     [SwaggerResponse(400, "Validation error or duplicate email/username")]
     public async Task<ActionResult<UserResponseDTO>> Create(
-        [FromBody] CreateUserDTO dto,
+        [FromBody] CreateUserDto dto,
         CancellationToken cancellationToken = default)
     {
         var created = await service.CreateAsync(dto, cancellationToken);

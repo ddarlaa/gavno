@@ -8,8 +8,8 @@ namespace IceBreakerApp.Application.IServices;
 
 public interface IQuestionService
 {
-    Task<QuestionResponseDTO?> GetByIdAsync(Guid id, CancellationToken ct = default);
-    Task<PaginatedResult<QuestionResponseDTO>> GetAllAsync(
+    Task<QuestionResponseDto?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<PaginatedResult<QuestionResponseDto>> GetAllAsync(
         int pageNumber,
         int pageSize,
         string? sortBy,
@@ -17,11 +17,11 @@ public interface IQuestionService
         string? search,
         Guid? topicId,
         CancellationToken ct = default);
-    Task<QuestionResponseDTO> CreateAsync(CreateQuestionDTO dto, CancellationToken ct = default);
+    Task<QuestionResponseDto> CreateAsync(CreateQuestionDTO dto, CancellationToken ct = default);
     Task UpdateAsync(Guid id, UpdateQuestionDTO dto, CancellationToken ct = default);
     Task PatchAsync(Guid id, JsonPatchDocument<UpdateQuestionDTO> patchDoc, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
-    Task<BulkOperationResult<QuestionResponseDTO>> BulkCreateAsync(
+    Task<BulkOperationResult<QuestionResponseDto>> BulkCreateAsync(
         List<CreateQuestionDTO> dtos, 
         CancellationToken ct = default);
 }

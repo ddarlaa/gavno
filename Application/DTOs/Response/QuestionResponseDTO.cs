@@ -1,6 +1,6 @@
 ﻿namespace IceBreakerApp.Application.DTOs.Response;
 
-public class QuestionResponseDTO
+public class QuestionResponseDto
 {
     public Guid Id { get; set; }
     public string Username { get; set; } = null!;

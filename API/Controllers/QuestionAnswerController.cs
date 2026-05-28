@@ -31,8 +31,8 @@ public class QuestionAnswersController : ControllerBase
     /// </summary>
     [HttpGet]
     [SwaggerOperation(Summary = "Get paginated answers")]
-    [SwaggerResponse(200, "Success", typeof(PaginatedResult<QuestionAnswerResponseDTO>))]
-    public async Task<ActionResult<PaginatedResult<QuestionAnswerResponseDTO>>> GetPaginated(
+    [SwaggerResponse(200, "Success", typeof(PaginatedResult<QuestionAnswerResponseDto>))]
+    public async Task<ActionResult<PaginatedResult<QuestionAnswerResponseDto>>> GetPaginated(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] Guid? questionId = null,
@@ -48,9 +48,9 @@ public class QuestionAnswersController : ControllerBase
     /// </summary>
     [HttpGet("{id}")]
     [SwaggerOperation(Summary = "Get answer by ID")]
-    [SwaggerResponse(200, "Success", typeof(QuestionAnswerResponseDTO))]
+    [SwaggerResponse(200, "Success", typeof(QuestionAnswerResponseDto))]
     [SwaggerResponse(404, "Answer not found")]
-    public async Task<ActionResult<QuestionAnswerResponseDTO>> GetById(
+    public async Task<ActionResult<QuestionAnswerResponseDto>> GetById(
         Guid id,
         CancellationToken cancellationToken = default)
     {
@@ -63,9 +63,9 @@ public class QuestionAnswersController : ControllerBase
     /// </summary>
     [HttpGet("question/{questionId}/accepted")]
     [SwaggerOperation(Summary = "Get accepted answer for question")]
-    [SwaggerResponse(200, "Success", typeof(QuestionAnswerResponseDTO))]
+    [SwaggerResponse(200, "Success", typeof(QuestionAnswerResponseDto))]
     [SwaggerResponse(404, "Accepted answer not found")]
-    public async Task<ActionResult<QuestionAnswerResponseDTO>> GetAccepted(
+    public async Task<ActionResult<QuestionAnswerResponseDto>> GetAccepted(
         Guid questionId,
         CancellationToken cancellationToken = default)
     {
@@ -79,9 +79,9 @@ public class QuestionAnswersController : ControllerBase
     [HttpPost]
     [Authorize(Policy = "RequireUserOrAdmin")]
     [SwaggerOperation(Summary = "Create answer")]
-    [SwaggerResponse(201, "Answer created", typeof(QuestionAnswerResponseDTO))]
+    [SwaggerResponse(201, "Answer created", typeof(QuestionAnswerResponseDto))]
     [SwaggerResponse(400, "Validation error")]
-    public async Task<ActionResult<QuestionAnswerResponseDTO>> Create(
+    public async Task<ActionResult<QuestionAnswerResponseDto>> Create(
         [FromBody] CreateQuestionAnswerDTO dto,
         CancellationToken cancellationToken = default)
     {
@@ -94,9 +94,9 @@ public class QuestionAnswersController : ControllerBase
     /// </summary>
     [HttpPost("bulk")]
     [SwaggerOperation(Summary = "Bulk create answers", Description = "Creates multiple answers at once")]
-    [SwaggerResponse(200, "Success", typeof(List<QuestionAnswerResponseDTO>))]
+    [SwaggerResponse(200, "Success", typeof(List<QuestionAnswerResponseDto>))]
     [SwaggerResponse(400, "Validation errors")]
-    public async Task<ActionResult<List<QuestionAnswerResponseDTO>>> BulkCreate(
+    public async Task<ActionResult<List<QuestionAnswerResponseDto>>> BulkCreate(
         [FromBody] List<CreateQuestionAnswerDTO> dtos,
         CancellationToken cancellationToken = default)
     {

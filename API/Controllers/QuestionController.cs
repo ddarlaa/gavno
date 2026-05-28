@@ -36,10 +36,10 @@ public class QuestionsController : ControllerBase
     [HttpGet]
     [Authorize(Policy = "RequireUserOrAdmin")]
     [SwaggerOperation(Summary = "Get all questions", Description = "Returns paginated list of questions with filtering and sorting")]
-    [SwaggerResponse(200, "Success", typeof(PaginatedResult<QuestionResponseDTO>))]
+    [SwaggerResponse(200, "Success", typeof(PaginatedResult<QuestionResponseDto>))]
     [SwaggerResponse(400, "Bad Request")]
     [SwaggerResponse(500, "Internal Server Error")]
-    public async Task<ActionResult<PaginatedResult<QuestionResponseDTO>>> GetAll(
+    public async Task<ActionResult<PaginatedResult<QuestionResponseDto>>> GetAll(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] string? sortBy = null,
@@ -55,10 +55,10 @@ public class QuestionsController : ControllerBase
 
     [HttpGet("{id}")]
     [SwaggerOperation(Summary = "Get question by ID", Description = "Returns a single question by its ID")]
-    [SwaggerResponse(200, "Success", typeof(QuestionResponseDTO))]
+    [SwaggerResponse(200, "Success", typeof(QuestionResponseDto))]
     [SwaggerResponse(404, "Question not found")]
     [SwaggerResponse(500, "Internal Server Error")]
-    public async Task<ActionResult<QuestionResponseDTO>> GetById(
+    public async Task<ActionResult<QuestionResponseDto>> GetById(
         Guid id,
         CancellationToken cancellationToken = default)
     {
@@ -69,10 +69,10 @@ public class QuestionsController : ControllerBase
     [HttpPost]
     [Authorize(Policy = "RequireUserOrAdmin")]
     [SwaggerOperation(Summary = "Create new question", Description = "Creates a new question")]
-    [SwaggerResponse(201, "Created", typeof(QuestionResponseDTO))]
+    [SwaggerResponse(201, "Created", typeof(QuestionResponseDto))]
     [SwaggerResponse(400, "Validation error")]
     [SwaggerResponse(500, "Internal Server Error")]
-    public async Task<ActionResult<QuestionResponseDTO>> Create(
+    public async Task<ActionResult<QuestionResponseDto>> Create(
         [FromBody] CreateQuestionDTO dto,
         CancellationToken cancellationToken = default)
     {
@@ -131,10 +131,10 @@ public class QuestionsController : ControllerBase
 
     [HttpPost("bulk")]
     [SwaggerOperation(Summary = "Bulk create questions", Description = "Create multiple questions at once")]
-    [SwaggerResponse(200, "Success with results", typeof(BulkOperationResult<QuestionResponseDTO>))]
+    [SwaggerResponse(200, "Success with results", typeof(BulkOperationResult<QuestionResponseDto>))]
     [SwaggerResponse(400, "Validation errors")]
     [SwaggerResponse(500, "Internal Server Error")]
-    public async Task<ActionResult<BulkOperationResult<QuestionResponseDTO>>> BulkCreate(
+    public async Task<ActionResult<BulkOperationResult<QuestionResponseDto>>> BulkCreate(
         [FromBody] List<CreateQuestionDTO> dtos,
         CancellationToken cancellationToken = default)
     {

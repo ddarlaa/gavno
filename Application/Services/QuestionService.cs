@@ -43,7 +43,7 @@ namespace IceBreakerApp.Application.Services
             _fileService = fileService; // Добавлено
         }
         
-        public async Task<QuestionResponseDTO?> GetByIdAsync(Guid id, CancellationToken ct = default)
+        public async Task<QuestionResponseDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
         {
             try
             {
@@ -61,7 +61,7 @@ namespace IceBreakerApp.Application.Services
                 question.ViewCount++;
                 await _questionRepository.UpdateAsync(question, ct);
 
-                var response = _mapper.Map<QuestionResponseDTO>(question);
+                var response = _mapper.Map<QuestionResponseDto>(question);
                 response.Username = user?.Username ?? "Unknown";
                 response.UserDisplayName = user?.DisplayName ?? $"{user?.FirstName} {user?.LastName}".Trim();
                 response.TopicName = topic?.Name ?? "Unknown";
@@ -77,7 +77,7 @@ namespace IceBreakerApp.Application.Services
             }
         }
 
-        public async Task<PaginatedResult<QuestionResponseDTO>> GetAllAsync(
+        public async Task<PaginatedResult<QuestionResponseDto>> GetAllAsync(
             int pageNumber,
             int pageSize,
             string? sortBy = null,
@@ -91,7 +91,7 @@ namespace IceBreakerApp.Application.Services
                 var paginatedResult = await _questionRepository.GetPaginatedAsync(
                     pageNumber, pageSize, sortBy, sortOrder, search, topicId, ct);
 
-                var responseList = new List<QuestionResponseDTO>();
+                var responseList = new List<QuestionResponseDto>();
                 
                 foreach (var question in paginatedResult.Items)
                 {
@@ -101,7 +101,7 @@ namespace IceBreakerApp.Application.Services
                     var likeCount = await _questionLikeService.GetLikeCountAsync(question.Id, ct);
                     var answerCount = await _questionAnswerService.GetAnswerCountAsync(question.Id, ct);
 
-                    var response = _mapper.Map<QuestionResponseDTO>(question);
+                    var response = _mapper.Map<QuestionResponseDto>(question);
                     response.Username = user?.Username ?? "Unknown";
                     response.UserDisplayName = user?.DisplayName ?? $"{user?.FirstName} {user?.LastName}".Trim();
                     response.TopicName = topic?.Name ?? "Unknown";
@@ -112,7 +112,7 @@ namespace IceBreakerApp.Application.Services
                     responseList.Add(response);
                 }
 
-                return new PaginatedResult<QuestionResponseDTO>(
+                return new PaginatedResult<QuestionResponseDto>(
                     responseList, paginatedResult.TotalCount, pageNumber, pageSize);
             }
             catch (Exception ex)
@@ -122,7 +122,7 @@ namespace IceBreakerApp.Application.Services
             }
         }
 
-        public async Task<QuestionResponseDTO> CreateAsync(CreateQuestionDTO dto, CancellationToken ct = default)
+        public async Task<QuestionResponseDto> CreateAsync(CreateQuestionDTO dto, CancellationToken ct = default)
         {
             try
             {
@@ -147,7 +147,7 @@ namespace IceBreakerApp.Application.Services
 
                 await _questionRepository.AddAsync(question, ct);
 
-                var response = _mapper.Map<QuestionResponseDTO>(question);
+                var response = _mapper.Map<QuestionResponseDto>(question);
                 response.Username = user.Username;
                 response.UserDisplayName = user.DisplayName ?? $"{user.FirstName} {user.LastName}".Trim();
                 response.TopicName = topic.Name;
@@ -269,11 +269,11 @@ namespace IceBreakerApp.Application.Services
             }
         }
 
-        public async Task<BulkOperationResult<QuestionResponseDTO>> BulkCreateAsync(
+        public async Task<BulkOperationResult<QuestionResponseDto>> BulkCreateAsync(
             List<CreateQuestionDTO> dtos, 
             CancellationToken ct = default)
         {
-            var result = new BulkOperationResult<QuestionResponseDTO>();
+            var result = new BulkOperationResult<QuestionResponseDto>();
             
             try
             {
