@@ -27,10 +27,7 @@ using IceBreakerApp.Application.DTOs.Create;
 using Infrastructure.Data;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
-// Удалите using Microsoft.OpenApi; если есть
-// Добавьте эти using:
 using Microsoft.OpenApi.Models;
-using Microsoft.AspNetCore.Mvc;
 using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);

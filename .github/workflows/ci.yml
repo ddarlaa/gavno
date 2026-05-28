@@ -44,38 +44,38 @@ jobs:
     needs: docker-build-push
     runs-on: self-hosted
     steps:
-      - name: Pull and restart web
+      - name: Pull and restart
         shell: cmd
         run: |
           cd /d "C:\Users\Svetlana\OneDrive\Desktop\IceBreakerApp"
-          docker compose pull web
-          docker compose up -d --force-recreate web
+          docker compose pull
+          docker compose up -d
       - name: Verify (health + acceptance gate)
         shell: powershell
         run: |
-          Start-Sleep -Seconds 15
+          Start-Sleep -Seconds 20
           # Health check
-          try {
-            $resp = Invoke-WebRequest -Uri "http://localhost/health" -UseBasicParsing
-            if ($resp.StatusCode -ne 200) { throw "Health returned $($resp.StatusCode)" }
-            Write-Host "Health OK"
-          } catch {
-            Write-Host "Health FAIL: $_"
-            exit 1
-          }
-          # Acceptance gate: 5xx error rate
+          $resp = Invoke-WebRequest -Uri "http://localhost/health" -UseBasicParsing
+          if ($resp.StatusCode -ne 200) { throw "Health returned $($resp.StatusCode)" }
+          Write-Host "Health OK"
+          # Acceptance gate
           $query = [uri]::EscapeDataString('rate(http_requests_received_total{status=~"5.."}[1m])')
           $url = "http://localhost:9090/api/v1/query?query=$query"
-          try {
-            $json = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content | ConvertFrom-Json
-            $rate = 0.0
-            if ($json.data.result.Count -gt 0) { $rate = [double]$json.data.result[0].value[1] }
-            Write-Host "5xx error rate: $rate"
-            if ($rate -gt 0.05) {
-              Write-Host "Error rate too high, deployment failed"
-              exit 1
-            }
-          } catch {
-            Write-Host "Prometheus not reachable, skipping gate"
-          }
+          $json = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content | ConvertFrom-Json
+          if (-not $json.data.result) { throw "Prometheus query returned no data" }
+          $rate = 0.0
+          if ($json.data.result.Count -gt 0) { $rate = [double]$json.data.result[0].value[1] }
+          Write-Host "5xx error rate: $rate"
+          if ($rate -gt 0.05) { throw "Error rate too high ($rate)" }
           Write-Host "Deployment verified"
+      - name: Verify deployment
+        run: |
+          sleep 15
+          curl -f http://localhost/health || exit 1
+          ERROR_RATE=$(curl -s "http://localhost:9090/api/v1/query" \
+            --data-urlencode 'query=rate(http_requests_received_total{status=~"5.."}[1m])' \
+            | jq '.data.result[0].value[1] // "0"')
+          if (( $(echo "$ERROR_RATE > 0.05" | bc -l) )); then
+            echo "5xx error rate too high: $ERROR_RATE"
+            exit 1
+          fi
