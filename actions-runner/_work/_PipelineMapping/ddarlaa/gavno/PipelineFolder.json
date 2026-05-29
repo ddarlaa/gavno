@@ -1,0 +1,12 @@
+﻿{
+  "repositoryName": "ddarlaa/gavno",
+  "pipelineDirectory": "gavno",
+  "workspaceDirectory": "gavno\\gavno",
+  "repositories": {
+    "ddarlaa/gavno": {
+      "repositoryPath": "gavno\\gavno",
+      "lastRunOn": "05/22/2026 09:58:19 +03:00"
+    }
+  },
+  "lastRunOn": "05/22/2026 10:45:06 +03:00"
+}
